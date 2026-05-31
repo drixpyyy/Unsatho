@@ -418,36 +418,129 @@ const DATASET = [
     {q: "thank you", a: "You're very welcome! Feel free to ask anything else."}
 ];
 
-// ========== TOKENIZER (unchanged architecture) ==========
-class WordTokenizer {
+// ========== TOKENIZER — BPE SUBWORD (à la GPT / Llama / SentencePiece) ==========
+// Trains Byte-Pair Encoding merges from the corpus. Uses "▁" (U+2581) as the
+// word-start marker (SentencePiece style), so spaces are recoverable on decode.
+// Newlines are kept as their own atomic character-word so code blocks survive.
+class BPETokenizer {
     constructor() {
-        this.w2i = { "<pad>": 0, "<bos>": 1, "<eos>": 2, "<unk>": 3, "<sys>": 4, "<usr>": 5, "<ast>": 6 };
-        this.i2w = { 0: "<pad>", 1: "<bos>", 2: "<eos>", 3: "<unk>", 4: "<sys>", 5: "<usr>", 6: "<ast>" };
-        this.v_s = 7;
+        this.specials = ["<pad>", "<bos>", "<eos>", "<unk>", "<sys>", "<usr>", "<ast>"];
+        this.w2i = {}; this.i2w = {};
+        this.specials.forEach((t, i) => { this.w2i[t] = i; this.i2w[i] = t; });
+        this.v_s = this.specials.length;
+        this.merges = [];          // ordered list of [a, b] merges
+        this.mergeRank = new Map(); // "a\u0000b" -> rank (lower = earlier/priority)
     }
-    clean(t) { return t.toLowerCase().replace(/([.,!?\n])/g, " $1 ").split(/\s+/).filter(x => x.length > 0); }
-    fit(texts) {
-        texts.forEach(text => {
-            this.clean(text).forEach(word => {
-                if (!(word in this.w2i)) { this.w2i[word] = this.v_s; this.i2w[this.v_s] = word; this.v_s++; }
-            });
-        });
+
+    _add(tok) {
+        if (!(tok in this.w2i)) { this.w2i[tok] = this.v_s; this.i2w[this.v_s] = tok; this.v_s++; }
     }
-    encode(text) { return this.clean(text).map(t => this.w2i[t] ?? 3); }
+
+    // Pre-tokenize: lowercase, split on whitespace, mark word-starts with ▁,
+    // and keep '\n' as its own word so newlines round-trip.
+    pretokenize(text) {
+        const t = text.toLowerCase();
+        const out = [];
+        let i = 0, leadSpace = true;
+        while (i < t.length) {
+            const c = t[i];
+            if (c === "\n") { out.push("\n"); leadSpace = true; i++; continue; }
+            if (/\s/.test(c)) { leadSpace = true; i++; continue; }
+            let j = i;
+            while (j < t.length && !/\s/.test(t[j])) j++;
+            out.push((leadSpace ? "▁" : "") + t.slice(i, j));
+            leadSpace = false;
+            i = j;
+        }
+        return out;
+    }
+
+    // Learn BPE merges from a corpus.
+    fit(texts, numMerges = 220) {
+        const wordFreq = new Map();
+        for (const text of texts) {
+            for (const w of this.pretokenize(text)) {
+                wordFreq.set(w, (wordFreq.get(w) || 0) + 1);
+            }
+        }
+        // Seed vocab with every base character and split each word into chars.
+        const wordSyms = new Map();
+        for (const w of wordFreq.keys()) {
+            const syms = [...w]; // unicode-safe split
+            wordSyms.set(w, syms);
+            for (const ch of syms) this._add(ch);
+        }
+        // Iteratively merge the most frequent adjacent pair.
+        for (let it = 0; it < numMerges; it++) {
+            const pairFreq = new Map();
+            for (const [w, syms] of wordSyms) {
+                const f = wordFreq.get(w);
+                for (let i = 0; i < syms.length - 1; i++) {
+                    const key = syms[i] + "\u0000" + syms[i + 1];
+                    pairFreq.set(key, (pairFreq.get(key) || 0) + f);
+                }
+            }
+            if (pairFreq.size === 0) break;
+            let bestKey = null, bestCount = 1;
+            for (const [k, c] of pairFreq) if (c > bestCount) { bestCount = c; bestKey = k; }
+            if (!bestKey) break; // nothing worth merging
+            const [a, b] = bestKey.split("\u0000");
+            const merged = a + b;
+            this.merges.push([a, b]);
+            this.mergeRank.set(a + "\u0000" + b, this.merges.length - 1);
+            this._add(merged);
+            // Apply merge across all words.
+            for (const [w, syms] of wordSyms) {
+                const ns = [];
+                let i = 0;
+                while (i < syms.length) {
+                    if (i < syms.length - 1 && syms[i] === a && syms[i + 1] === b) {
+                        ns.push(merged); i += 2;
+                    } else { ns.push(syms[i]); i++; }
+                }
+                wordSyms.set(w, ns);
+            }
+        }
+    }
+
+    // Apply learned merges greedily (lowest rank first) to a single pre-token.
+    _encodeWord(word) {
+        let syms = [...word];
+        while (syms.length > 1) {
+            let bestRank = Infinity, bestIdx = -1;
+            for (let i = 0; i < syms.length - 1; i++) {
+                const r = this.mergeRank.get(syms[i] + "\u0000" + syms[i + 1]);
+                if (r !== undefined && r < bestRank) { bestRank = r; bestIdx = i; }
+            }
+            if (bestIdx === -1) break;
+            syms = [...syms.slice(0, bestIdx), syms[bestIdx] + syms[bestIdx + 1], ...syms.slice(bestIdx + 2)];
+        }
+        const unk = this.w2i["<unk>"];
+        return syms.map(s => (s in this.w2i) ? this.w2i[s] : unk);
+    }
+
+    encode(text) {
+        const ids = [];
+        for (const w of this.pretokenize(text)) ids.push(...this._encodeWord(w));
+        return ids;
+    }
+
     decode(idx) {
-        let text = idx.filter(i => i > 6).map(i => this.i2w[i]).join(" ");
-        return text.replace(/\s([.,!?])/g, "$1").replace(/\s\n\s/g, "\n");
+        const pieces = idx.filter(i => i > 6).map(i => this.i2w[i] ?? "");
+        // Join raw, then convert word-start marker back to a space.
+        return pieces.join("").replace(/▁/g, " ").replace(/^ /, "");
     }
 }
 
-const tok = new WordTokenizer();
+const tok = new BPETokenizer();
 const allTexts = DATASET.map(d => `${SYSTEM_PROMPT} ${d.q} ${d.a}`);
-tok.fit(allTexts);
+tok.fit(allTexts, 220); // ~220 merges → vocab ≈ 7 specials + chars + merges
 
 // Model config — unchanged hyperparameters
 const CONFIG = {
     d: 128, n_l: 1, n_h: 4, d_ff: 192, n_exp: 8,
     seq: 64, batch: 4, ep: 200, lr: 0.004,
+    temperature: 1.0,
     v_s: tok.v_s
 };
 
@@ -553,6 +646,27 @@ async function train(data) {
     ui.in.placeholder = "Message Unsatho…";
 }
 
+// Temperature sampling: instead of always picking the highest-probability token
+// (argmax / greedy), draw from the softmax(logits / T) distribution. Higher T =
+// more random/creative; lower T -> approaches argmax; T <= 0 falls back to greedy.
+async function sampleToken(logits1d, temperature = 1.0) {
+    if (!temperature || temperature <= 0) {
+        const idx = (await logits1d.argMax(-1).data())[0];
+        return idx;
+    }
+    const probs = tf.tidy(() => tf.softmax(tf.div(logits1d, tf.scalar(temperature))));
+    const p = await probs.data();
+    probs.dispose();
+    // Inverse-CDF sample
+    const r = Math.random();
+    let acc = 0;
+    for (let i = 0; i < p.length; i++) {
+        acc += p[i];
+        if (r <= acc) return i;
+    }
+    return p.length - 1;
+}
+
 async function respond(text) {
     let cur = [1, 4, ...tok.encode(SYSTEM_PROMPT), 5, ...tok.encode(text), 6];
     const msgObj = addMessage("ai", "", true);
@@ -562,8 +676,8 @@ async function respond(text) {
         const inp = tf.tensor2d([padFn([...cur], CONFIG.seq)], [1, CONFIG.seq], 'int32');
         const log = model.forward(inp);
         const lIdx = Math.min(cur.length-1, CONFIG.seq-1);
-        const last = log.slice([0, lIdx, 0], [1, 1, CONFIG.v_s]);
-        const nIdx = (await last.argMax(-1).data())[0];
+        const last = log.slice([0, lIdx, 0], [1, 1, CONFIG.v_s]).reshape([CONFIG.v_s]);
+        const nIdx = await sampleToken(last, CONFIG.temperature);
         inp.dispose(); log.dispose(); last.dispose();
         if (nIdx === 2 || nIdx === 0) break;
         cur.push(nIdx); outIdx.push(nIdx);
