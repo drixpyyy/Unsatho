@@ -19,3 +19,5 @@ working model that can actually respond(has low data tho)
 works on any device/os since its a site and trains in under 1 min(idk the exact seconds or it might be a little above 1 min but 100% not 3 mins so its fast)
 
 half decent ui that still kinda looks ai
+
+better ui stil looks bad and coded a gpu that makes training way faster
