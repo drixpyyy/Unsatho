@@ -2,7 +2,7 @@
 
 **A tiny transformer that trains in your browser.**
 
-No API keys. No GPU. No install. Just one HTML file.
+No API keys. No GPU. No install. Just one HTML file.(this readme cringe asf i made it with ai ion even wanna deal with reading it so js deal with it #fairs 👌)
 
 [Try it here](https://drixpyyy.github.io/Unsatho/)
 
