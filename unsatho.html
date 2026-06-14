@@ -1,0 +1,2470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Unsatho · Learn How an LLM Really Works</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-sidebar: #1c1d22;
+            --bg-main: #2a2b32;
+            --bg-message-ai: #34353c;
+            --bg-panel: #25262c;
+            --bg-elev: #303138;
+            --border-muted: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.14);
+            --text-main: #ECECF1;
+            --text-muted: #a9aab4;
+            --text-dim: #74757f;
+            --accent: #10a37f;
+            --accent-hover: #1abf95;
+            --accent-glow: rgba(16, 163, 127, 0.25);
+            --accent-soft: rgba(16, 163, 127, 0.12);
+            --blue: #4f9dff;
+            --purple: #a98bff;
+            --amber: #f2b53c;
+            --pink: #ff7eb6;
+            --radius: 12px;
+        }
+        body {
+            background: var(--bg-main);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ---------- Sidebar ---------- */
+        #sidebar {
+            width: 272px;
+            background: var(--bg-sidebar);
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+            border-right: 1px solid var(--border-muted);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+            z-index: 95;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 8px 14px;
+        }
+        .brand .logo {
+            width: 30px; height: 30px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent), #0c7d61);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+        .brand .logo svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 2; }
+        .brand .name { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; }
+        .brand .sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+
+        .new-chat-btn {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 12px;
+            border: 1px solid var(--border-muted);
+            border-radius: 10px;
+            cursor: pointer; font-size: 14px; color: #fff;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            margin-bottom: 16px;
+        }
+        .new-chat-btn:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .new-chat-btn:active { transform: scale(0.98); }
+        .new-chat-btn svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2; fill: none; }
+
+        .sidebar-section { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+        .sidebar-label {
+            font-size: 11px; font-weight: 700; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 0.6px; margin: 6px 4px 4px;
+        }
+        .model-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 10px;
+            transition: background-color 0.2s ease; cursor: default;
+        }
+        .model-item.active {
+            background-color: var(--accent-soft);
+            border: 1px solid rgba(16, 163, 127, 0.3);
+        }
+        .model-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--accent); box-shadow: 0 0 8px var(--accent);
+            flex-shrink: 0;
+        }
+        .model-info { display: flex; flex-direction: column; min-width: 0; }
+        .model-name { font-size: 14px; font-weight: 600; color: #fff; }
+        .model-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        .stage-list { display: flex; flex-direction: column; gap: 4px; margin-top: 2px; }
+        .stage-pill {
+            display: flex; align-items: center; gap: 9px;
+            font-size: 12px; color: var(--text-muted);
+            padding: 7px 12px; border-radius: 8px;
+        }
+        .stage-pill .tick {
+            width: 15px; height: 15px; border-radius: 50%;
+            border: 1.5px solid var(--text-dim); flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .stage-pill.done .tick { border-color: var(--accent); background: var(--accent); }
+        .stage-pill.done .tick svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 3; fill: none; }
+        .stage-pill.done { color: var(--text-main); }
+
+        .sidebar-footer {
+            padding-top: 10px; border-top: 1px solid var(--border-muted);
+            display: flex; flex-direction: column; gap: 4px; padding-bottom: 2px;
+        }
+        .footer-item {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 13px; color: var(--text-main);
+            padding: 10px 12px; border-radius: 9px;
+            cursor: pointer; transition: background-color 0.2s ease;
+        }
+        .footer-item:hover { background-color: rgba(255, 255, 255, 0.05); }
+        .footer-item svg { width: 16px; height: 16px; stroke: var(--text-muted); stroke-width: 2; fill: none; }
+
+        #sidebarOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px); z-index: 90;
+        }
+
+        /* ---------- Main ---------- */
+        #main { flex: 1; display: flex; flex-direction: column; height: 100%; position: relative; min-width: 0; }
+        header {
+            padding: 13px 18px; border-bottom: 1px solid var(--border-muted);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0; background: var(--bg-main); gap: 12px;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .menu-toggle-btn {
+            display: none; background: transparent; border: none; cursor: pointer;
+            padding: 4px; align-items: center; justify-content: center;
+        }
+        .menu-toggle-btn svg { width: 22px; height: 22px; stroke: var(--text-main); stroke-width: 2; fill: none; }
+        .header-title { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        #headerStatus {
+            font-size: 11px; color: var(--accent);
+            background: var(--accent-soft); border: 1px solid rgba(16, 163, 127, 0.2);
+            padding: 4px 9px; border-radius: 20px; white-space: nowrap;
+            display: flex; align-items: center; gap: 6px;
+        }
+        #headerStatus .pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.6s ease-in-out infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+        .icon-btn {
+            background: transparent; border: 1px solid var(--border-muted);
+            width: 36px; height: 36px; border-radius: 9px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+        .icon-btn:hover { background: rgba(255,255,255,0.06); }
+        .icon-btn:active { transform: scale(0.94); }
+        .icon-btn svg { width: 18px; height: 18px; stroke: var(--text-main); stroke-width: 2; fill: none; }
+
+        /* ---------- Chat ---------- */
+        #chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .msg-container { display: flex; justify-content: center; width: 100%; padding: clamp(14px,3vw,22px) 16px; border-bottom: 1px solid rgba(0,0,0,0.08); }
+        .msg-container.ai { background-color: var(--bg-message-ai); }
+        .msg-content { width: 100%; max-width: 760px; display: flex; gap: clamp(10px,2.5vw,18px); }
+        .avatar { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .avatar.user { background-color: #5436da; color: #fff; font-size: 12px; font-weight: 700; }
+        .avatar.ai { background: linear-gradient(135deg, var(--accent), #0c7d61); color: #fff; }
+        .avatar.ai svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; }
+        .bubble-wrap { flex: 1; min-width: 0; }
+        .bubble-text { font-size: 15px; line-height: 1.65; color: var(--text-main); white-space: pre-wrap; word-break: break-word; padding-top: 3px; animation: textAppear 0.25s ease forwards; }
+        @keyframes textAppear { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+        /* reasoning block */
+        .reasoning {
+            margin: 4px 0 10px; border: 1px solid var(--border-muted);
+            border-radius: 10px; background: rgba(0,0,0,0.16); overflow: hidden;
+        }
+        .reasoning-head {
+            display: flex; align-items: center; gap: 8px; cursor: pointer;
+            padding: 9px 12px; font-size: 12.5px; color: var(--text-muted); user-select: none;
+        }
+        .reasoning-head:hover { color: var(--text-main); }
+        .reasoning-head svg { width: 14px; height: 14px; stroke: var(--purple); fill: none; stroke-width: 2; }
+        .reasoning-head .chev { margin-left: auto; transition: transform 0.25s ease; width: 13px; height: 13px; stroke: var(--text-dim); }
+        .reasoning.collapsed .chev { transform: rotate(-90deg); }
+        .reasoning-body {
+            padding: 0 12px; max-height: 600px; overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.25s ease;
+            font-size: 13px; line-height: 1.6; color: var(--text-muted);
+            font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+        }
+        .reasoning-body .step { padding: 3px 0; opacity: 0; animation: stepIn 0.3s ease forwards; }
+        @keyframes stepIn { from{opacity:0;transform:translateX(-6px)} to{opacity:1;transform:translateX(0)} }
+        .reasoning.collapsed .reasoning-body { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; }
+        .reasoning-body { padding-bottom: 10px; }
+
+        /* RLHF A/B vote */
+        .rlhf-vote { margin-top: 10px; border: 1px dashed rgba(16,163,127,0.4); border-radius: 12px; padding: 14px; background: var(--accent-soft); animation: textAppear 0.3s ease; }
+        .rlhf-vote .vh { font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .rlhf-vote .vsub { font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; }
+        .rlhf-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        @media(max-width:560px){ .rlhf-options{ grid-template-columns: 1fr; } }
+        .rlhf-opt {
+            border: 1px solid var(--border-strong); border-radius: 10px; padding: 12px;
+            background: var(--bg-elev); cursor: pointer; transition: all 0.18s ease; font-size: 14px; line-height: 1.55;
+        }
+        .rlhf-opt:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.3); }
+        .rlhf-opt .lbl { font-size: 10.5px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .rlhf-actions { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .rlhf-bad { font-size: 12.5px; color: var(--text-muted); background: transparent; border: 1px solid var(--border-muted); border-radius: 8px; padding: 8px 14px; cursor: pointer; transition: all 0.18s ease; }
+        .rlhf-bad:hover { border-color: var(--pink); color: var(--pink); }
+        .rlhf-done { font-size: 12.5px; color: var(--accent); display: flex; align-items: center; gap: 7px; padding: 8px 0; animation: textAppear 0.3s ease; }
+
+        .typing { display: flex; gap: 5px; align-items: center; height: 24px; }
+        .typing span { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
+        .typing span:nth-child(1){animation-delay:-0.32s} .typing span:nth-child(2){animation-delay:-0.16s}
+        @keyframes bounce { 0%,80%,100%{transform:scale(0)} 40%{transform:scale(1)} }
+
+        /* ---------- Input ---------- */
+        .input-container { padding: 12px 16px clamp(12px,3vw,22px); display: flex; justify-content: center; background: var(--bg-main); }
+        .input-wrapper { width: 100%; max-width: 760px; display: flex; flex-direction: column; gap: 8px; }
+        .input-box {
+            display: flex; background-color: var(--bg-elev);
+            border: 1px solid var(--border-muted); border-radius: 14px;
+            padding: 8px 10px 8px 16px; align-items: flex-end;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.18); transition: border-color 0.2s ease;
+        }
+        .input-box:focus-within { border-color: rgba(16, 163, 127, 0.5); }
+        textarea { flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 15px; font-family: inherit; outline: none; resize: none; padding: 8px 0; max-height: 140px; }
+        textarea::placeholder { color: var(--text-dim); }
+        .input-box button {
+            background: transparent; border: none; width: 36px; height: 36px; border-radius: 9px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: background-color 0.2s ease, transform 0.1s ease; flex-shrink: 0;
+        }
+        .input-box button svg { width: 17px; height: 17px; stroke: var(--text-dim); stroke-width: 2; fill: none; }
+        .input-box button.active { background-color: var(--accent); }
+        .input-box button.streaming { background-color: var(--pink); }
+        .input-box button.streaming svg { stroke: #fff; fill: #fff; }
+        .cursor { display: inline-block; width: 7px; color: var(--accent); animation: blink 1s steps(2) infinite; font-weight: 700; }
+        @keyframes blink { 0%,50%{opacity:1} 50.01%,100%{opacity:0} }
+        .input-box button.active:hover { background-color: var(--accent-hover); }
+        .input-box button.active svg { stroke: #fff; }
+        .input-box button.active:active { transform: scale(0.92); }
+        .input-disclaimer { font-size: 11px; color: var(--text-dim); text-align: center; }
+        .chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .chip { font-size: 12px; color: var(--text-muted); border: 1px solid var(--border-muted); padding: 6px 11px; border-radius: 16px; cursor: pointer; transition: all 0.18s ease; background: var(--bg-elev); }
+        .chip:hover { border-color: var(--accent); color: var(--text-main); }
+
+        /* ---------- Training overlay ---------- */
+        #overlay {
+            position: fixed; inset: 0; background: rgba(24, 25, 28, 0.97);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; padding: 16px; backdrop-filter: blur(8px);
+            animation: fadeIn 0.3s ease forwards;
+        }
+        @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+        .train-card {
+            background: var(--bg-panel); border: 1px solid var(--border-muted);
+            border-radius: 16px; padding: clamp(18px,5vw,30px); width: 100%; max-width: 470px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.55); text-align: center;
+            animation: cardSlide 0.45s cubic-bezier(0.16,1,0.3,1) forwards;
+        }
+        @keyframes cardSlide { from{transform:translateY(22px);opacity:0} to{transform:translateY(0);opacity:1} }
+        .glowing-ring { width: 56px; height: 56px; border-radius: 50%; border: 3px solid rgba(16,163,127,0.12); border-top: 3px solid var(--accent); margin: 0 auto 14px; animation: spin 1s linear infinite; }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        .progress-bar { height: 7px; background: rgba(255,255,255,0.06); border-radius: 10px; overflow: hidden; margin: 18px 0; }
+        .progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); box-shadow: 0 0 10px var(--accent); transition: width 0.15s linear; }
+        .mono { font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 11px; color: var(--text-muted); }
+        .viz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 14px; margin-top: 22px; }
+        .viz-box { background: rgba(0,0,0,0.22); border: 1px solid rgba(255,255,255,0.04); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; align-items: center; }
+        .viz-title { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+        canvas { background: #1a1b22; border-radius: 6px; max-width: 100%; height: auto; }
+        .hidden { display: none !important; }
+
+        /* ---------- Settings drawer ---------- */
+        .drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(3px); z-index: 1100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .drawer-scrim.open { opacity: 1; pointer-events: auto; }
+        #settingsDrawer {
+            position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%);
+            background: var(--bg-panel); border-left: 1px solid var(--border-muted);
+            z-index: 1110; transform: translateX(100%); transition: transform 0.36s cubic-bezier(0.16,1,0.3,1);
+            display: flex; flex-direction: column; box-shadow: -16px 0 50px rgba(0,0,0,0.4);
+        }
+        #settingsDrawer.open { transform: translateX(0); }
+        .drawer-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--border-muted); flex-shrink: 0; }
+        .drawer-head h2 { font-size: 17px; font-weight: 700; }
+        .drawer-head .dsub { font-size: 12px; color: var(--text-dim); }
+        .drawer-body { flex: 1; overflow-y: auto; padding: 8px 20px 28px; }
+        .drawer-foot { padding: 14px 20px; border-top: 1px solid var(--border-muted); display: flex; gap: 10px; flex-shrink: 0; }
+
+        .set-group { margin-top: 20px; }
+        .set-group > .gtitle { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .set-row { padding: 13px 0; border-bottom: 1px solid var(--border-muted); }
+        .set-row:last-child { border-bottom: none; }
+        .set-row .rhead { display: flex; align-items: center; gap: 9px; }
+        .set-row .rlabel { font-size: 14px; font-weight: 600; }
+        .set-row .rdesc { font-size: 12px; color: var(--text-dim); margin-top: 3px; line-height: 1.5; }
+        .set-row .rright { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+        /* help "?" button */
+        .help-btn {
+            width: 19px; height: 19px; border-radius: 50%; border: none; cursor: pointer;
+            background: var(--accent-soft); color: var(--accent);
+            font-size: 12px; font-weight: 700; line-height: 1;
+            display: inline-flex; align-items: center; justify-content: center;
+            transition: transform 0.15s ease, background 0.2s ease; flex-shrink: 0;
+        }
+        .help-btn:hover { transform: scale(1.18); background: var(--accent); color: #fff; }
+        .help-btn:active { transform: scale(0.9); }
+
+        /* toggle switch */
+        .switch { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; inset: 0; cursor: pointer; background: #4a4b53; border-radius: 30px; transition: background 0.25s ease; }
+        .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.28s cubic-bezier(0.16,1,0.3,1); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .switch input:checked + .slider { background: var(--accent); }
+        .switch input:checked + .slider:before { transform: translateX(20px); }
+
+        /* sliders + inputs */
+        input[type=range] { -webkit-appearance: none; appearance: none; width: 150px; height: 4px; border-radius: 4px; background: #4a4b53; outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 0 0 4px var(--accent-soft); transition: transform 0.12s ease; }
+        input[type=range]::-webkit-slider-thumb:active { transform: scale(1.2); }
+        input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border: none; border-radius: 50%; background: var(--accent); cursor: pointer; }
+        .num-val { font-size: 13px; font-weight: 600; color: var(--accent); font-family: "SFMono-Regular", monospace; min-width: 46px; text-align: right; }
+        .txt-input { width: 100%; background: var(--bg-elev); border: 1px solid var(--border-muted); border-radius: 9px; color: var(--text-main); font-size: 14px; padding: 10px 12px; font-family: inherit; outline: none; transition: border-color 0.2s ease; }
+        .txt-input:focus { border-color: var(--accent); }
+        textarea.txt-input { resize: vertical; min-height: 110px; line-height: 1.55; font-family: "SFMono-Regular", Consolas, Menlo, monospace; font-size: 12.5px; white-space: pre; }
+        .field-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin: 4px 0 7px; }
+        .hintline { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+
+        .btn { border: none; border-radius: 10px; padding: 11px 16px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.18s ease; }
+        .btn-primary { background: var(--accent); color: #fff; flex: 1; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-ghost { background: transparent; border: 1px solid var(--border-strong); color: var(--text-main); }
+        .btn-ghost:hover { background: rgba(255,255,255,0.05); }
+        .retrain-note { font-size: 11.5px; color: var(--amber); margin-top: 10px; display: none; align-items: center; gap: 7px; }
+        .retrain-note.show { display: flex; }
+
+        /* ---------- Explainer (motion graphics board) ---------- */
+        .explainer-scrim { position: fixed; inset: 0; background: rgba(10,11,13,0.82); backdrop-filter: blur(10px); z-index: 1200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; display: flex; align-items: center; justify-content: center; padding: 16px; }
+        .explainer-scrim.open { opacity: 1; pointer-events: auto; }
+        .explainer {
+            width: 100%; max-width: 720px; background: linear-gradient(160deg, #23242b, #1b1c22);
+            border: 1px solid var(--border-strong); border-radius: 20px; overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.6); transform: scale(0.92) translateY(20px); opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.16,1,0.3,1), opacity 0.3s ease;
+            display: flex; flex-direction: column; max-height: 92vh;
+        }
+        .explainer-scrim.open .explainer { transform: scale(1) translateY(0); opacity: 1; }
+        .ex-stage { position: relative; height: 300px; flex-shrink: 0; background: radial-gradient(circle at 50% 35%, #2c2d36, #16171c); overflow: hidden; }
+        .ex-stage svg { width: 100%; height: 100%; display: block; }
+        .ex-close { position: absolute; top: 14px; right: 14px; width: 36px; height: 36px; border-radius: 50%; background: rgba(0,0,0,0.45); border: 1px solid var(--border-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; transition: all 0.18s ease; }
+        .ex-close:hover { background: rgba(255,80,80,0.25); border-color: var(--pink); transform: rotate(90deg); }
+        .ex-close svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2.4; fill: none; }
+        .ex-chip { position: absolute; top: 14px; left: 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 5px 11px; border-radius: 20px; background: rgba(0,0,0,0.4); border: 1px solid var(--border-muted); color: var(--accent); z-index: 5; }
+        .ex-body { padding: 20px 24px; overflow-y: auto; }
+        .ex-body h3 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .ex-body .tagline { font-size: 13.5px; color: var(--accent); margin-bottom: 14px; }
+        .ex-body p { font-size: 14px; line-height: 1.65; color: var(--text-muted); margin-bottom: 12px; }
+        .ex-body b { color: var(--text-main); font-weight: 600; }
+        .ex-meters { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 14px; }
+        .ex-meter .ml { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
+        .ex-meter .mbar { height: 7px; border-radius: 6px; background: rgba(255,255,255,0.07); overflow: hidden; }
+        .ex-meter .mfill { height: 100%; border-radius: 6px; width: 0; transition: width 0.9s cubic-bezier(0.16,1,0.3,1); }
+        .ex-controls { display: flex; align-items: center; gap: 10px; }
+        .ex-replay { font-size: 12.5px; color: var(--text-main); background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 9px; padding: 9px 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.18s ease; }
+        .ex-replay:hover { border-color: var(--accent); }
+        .ex-replay svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; }
+
+        /* Touch + tap target ergonomics */
+        button, .chip, .help-btn, .footer-item, .rlhf-opt, .model-item, .stage-pill, .new-chat-btn { touch-action: manipulation; }
+        .help-btn, .icon-btn, .switch, .input-box button { -webkit-tap-highlight-color: transparent; }
+        @media (hover: none) {
+            .help-btn { width: 24px; height: 24px; font-size: 14px; }
+            .chip { padding: 9px 14px; }
+            .icon-btn { width: 42px; height: 42px; }
+            .input-box button { width: 42px; height: 42px; }
+            input[type=range] { height: 22px; }
+            input[type=range]::-webkit-slider-thumb { width: 22px; height: 22px; }
+            .switch { width: 52px; height: 30px; }
+            .switch .slider:before { height: 24px; width: 24px; }
+            .switch input:checked + .slider:before { transform: translateX(22px); }
+        }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.05ms !important; }
+        }
+
+        @media (max-width: 768px) {
+            #sidebar { position: fixed; top: 0; left: 0; bottom: 0; transform: translateX(-100%); box-shadow: 8px 0 25px rgba(0,0,0,0.4); }
+            #sidebar.open { transform: translateX(0); }
+            #sidebar.open + #sidebarOverlay { display: block; }
+            .menu-toggle-btn { display: flex; }
+            .header-title { font-size: 14px; }
+            .ex-stage { height: 240px; }
+            #settingsDrawer { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <a href="#input" class="sr-only">Skip to message input</a>
+    <div id="sidebar" role="navigation" aria-label="Model and pipeline">
+        <div class="brand">
+            <div class="logo" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4v1a4 4 0 0 1 0 8v1a4 4 0 0 1-8 0v-1a4 4 0 0 1 0-8V6a4 4 0 0 1 4-4z"></path></svg>
+            </div>
+            <div>
+                <div class="name">Unsatho</div>
+                <div class="sub">A real LLM you can learn from</div>
+            </div>
+        </div>
+
+        <button type="button" class="new-chat-btn" onclick="clearChat(); closeSidebar();">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New chat
+        </button>
+
+        <div class="sidebar-section">
+            <div class="sidebar-label">Active model</div>
+            <div class="model-item active">
+                <span class="model-dot"></span>
+                <div class="model-info">
+                    <div class="model-name" id="sidebarModelName">Unsatho</div>
+                    <div class="model-meta" id="paramMeta">Initializing…</div>
+                </div>
+            </div>
+
+            <div class="sidebar-label" style="margin-top:14px;">Training pipeline</div>
+            <div class="stage-list" id="stageList">
+                <div class="stage-pill" data-stage="pretrain"><span class="tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></span> Pre-training</div>
+                <div class="stage-pill" data-stage="sft"><span class="tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></span> Fine-tuning (SFT)</div>
+                <div class="stage-pill" data-stage="rlhf"><span class="tick"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg></span> RLHF alignment</div>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <button type="button" class="footer-item" onclick="openSettings()">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                Settings &amp; training data
+            </button>
+            <button type="button" class="footer-item" onclick="clearChat(); closeSidebar();">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                Clear conversation
+            </button>
+        </div>
+    </div>
+
+    <div id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+    <div id="main">
+        <header>
+            <div class="header-left">
+                <button class="menu-toggle-btn" onclick="toggleSidebar()" aria-label="Toggle menu">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="header-title" id="headerTitle">Unsatho · local browser model</div>
+            </div>
+            <div class="header-right">
+                <div id="headerStatus" role="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span> Online</div>
+                <button class="icon-btn" title="Settings" aria-label="Open settings" onclick="openSettings()">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <main id="chat" role="log" aria-live="polite" aria-label="Conversation" aria-busy="true">
+            <div class="msg-container ai">
+                <div class="msg-content">
+                    <div class="avatar ai" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+                    <div class="bubble-wrap"><div class="bubble-text">Loading model…</div></div>
+                </div>
+            </div>
+        </main>
+
+        <div class="input-container">
+            <div class="input-wrapper">
+                <div class="chips" id="chips" role="group" aria-label="Suggested prompts"></div>
+                <div class="input-box">
+                    <label for="input" class="sr-only">Message</label>
+                    <textarea id="input" placeholder="Send a message…" rows="1" aria-label="Message" disabled></textarea>
+                    <button id="send" aria-label="Send message" disabled>
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
+                <div class="input-disclaimer">Unsatho is a tiny educational model trained live in your browser — it will make mistakes.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training overlay -->
+    <div id="overlay">
+        <div class="train-card">
+            <div class="glowing-ring"></div>
+            <h3 style="font-size:18px;font-weight:700;color:#fff;">Training Unsatho</h3>
+            <p style="font-size:12px;color:var(--text-muted);margin-top:5px;">A real transformer is being trained in your browser, step by step.</p>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+            <p id="trainMsg" class="mono">Preparing tokenizer…</p>
+            <p id="lossMsg" class="mono" style="margin-top:6px;color:#fff;"></p>
+            <div class="viz-grid">
+                <div class="viz-box"><div class="viz-title">Training loss</div><canvas id="lossChart" width="170" height="100"></canvas></div>
+                <div class="viz-box"><div class="viz-title">Attention map</div><canvas id="attnMap" width="100" height="100"></canvas></div>
+            </div>
+            <p class="mono" style="font-size:9px;margin-top:12px;color:var(--text-dim);">Pre-training → fine-tuning → RLHF, all on-device</p>
+        </div>
+    </div>
+
+    <!-- Settings drawer -->
+    <div class="drawer-scrim" id="settingsScrim" onclick="closeSettings()"></div>
+    <div id="settingsDrawer" role="dialog" aria-label="Settings">
+        <div class="drawer-head">
+            <div class="logo" style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#0c7d61);display:flex;align-items:center;justify-content:center;">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:#fff;fill:none;stroke-width:2;"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82M4.6 9a1.65 1.65 0 0 0-.33-1.82"></path></svg>
+            </div>
+            <div style="flex:1;">
+                <h2>Settings</h2>
+                <div class="dsub">Everything about the model — tap any <b style="color:var(--accent)">?</b> for an animated explanation</div>
+            </div>
+            <button class="icon-btn" onclick="closeSettings()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+        </div>
+        <div class="drawer-body" id="settingsBody"><!-- injected by JS --></div>
+        <div class="drawer-foot">
+            <button class="btn btn-ghost" onclick="resetSettings()">Reset to defaults</button>
+            <button class="btn btn-primary" id="applyBtn" onclick="applySettings()">Save settings</button>
+        </div>
+        <input type="file" id="importFile" accept="application/json,.json" style="display:none" aria-hidden="true">
+    </div>
+
+    <!-- Explainer motion-graphics board -->
+    <div class="explainer-scrim" id="explainerScrim" onclick="if(event.target===this)closeExplainer()">
+        <div class="explainer" id="explainerCard" role="dialog" aria-modal="true" aria-label="Concept explainer">
+            <div class="ex-stage" id="exStage">
+                <div class="ex-chip" id="exChip">Concept</div>
+                <button class="ex-close" onclick="closeExplainer()" title="Close"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+            </div>
+            <div class="ex-body" id="exBody"></div>
+        </div>
+    </div>
+
+<script>
+    const Matrix = {
+        softmax(arr) {
+            let max = -Infinity;
+            for (let i = 0; i < arr.length; i++) {
+                if (arr[i] > max) max = arr[i];
+            }
+            const exps = new Float32Array(arr.length);
+            let sum = 0;
+            for (let i = 0; i < arr.length; i++) {
+                exps[i] = Math.exp(arr[i] - max);
+                sum += exps[i];
+            }
+            for (let i = 0; i < arr.length; i++) {
+                exps[i] /= (sum || 1e-9);
+            }
+            return exps;
+        }
+    };
+
+    class BPETokenizer {
+        constructor() {
+            this.vocab = { "[PAD]": 0, "[BOS]": 1, "[EOS]": 2, "[UNK]": 3 };
+            this.nextId = 4;
+            this.merges = [];
+            this.mergeRanks = new Map();
+        }
+
+        pretokenize(text) {
+            return text.toLowerCase().replace(/\s+/g, ' ').trim().split(' ').map(w => "▁" + w);
+        }
+
+        train(corpus, numMerges = 50) {
+            const wordFreq = new Map();
+            for (const text of corpus) {
+                for (const word of this.pretokenize(text)) {
+                    wordFreq.set(word, (wordFreq.get(word) || 0) + 1);
+                }
+            }
+
+            const wordSplits = new Map();
+            for (const [word, freq] of wordFreq) {
+                const chars = [...word];
+                wordSplits.set(word, chars);
+                for (const ch of chars) {
+                    if (!(ch in this.vocab)) {
+                        this.vocab[ch] = this.nextId++;
+                    }
+                }
+            }
+
+            for (let step = 0; step < numMerges; step++) {
+                const pairCounts = new Map();
+                for (const [word, splits] of wordSplits) {
+                    const freq = wordFreq.get(word);
+                    for (let i = 0; i < splits.length - 1; i++) {
+                        const pair = splits[i] + "§" + splits[i + 1];
+                        pairCounts.set(pair, (pairCounts.get(pair) || 0) + freq);
+                    }
+                }
+                if (pairCounts.size === 0) break;
+
+                let bestPair = null, bestCount = 0;
+                for (const [pair, cnt] of pairCounts) {
+                    if (cnt > bestCount) {
+                        bestCount = cnt;
+                        bestPair = pair;
+                    }
+                }
+                if (!bestPair) break;
+
+                const [a, b] = bestPair.split("§");
+                const merged = a + b;
+                this.merges.push([a, b]);
+                this.mergeRanks.set(a + "§" + b, step);
+
+                if (!(merged in this.vocab)) {
+                    this.vocab[merged] = this.nextId++;
+                }
+
+                for (const [word, splits] of wordSplits) {
+                    const newSplits = [];
+                    for (let i = 0; i < splits.length; i++) {
+                        if (i < splits.length - 1 && splits[i] === a && splits[i + 1] === b) {
+                            newSplits.push(merged);
+                            i++;
+                        } else {
+                            newSplits.push(splits[i]);
+                        }
+                    }
+                    wordSplits.set(word, newSplits);
+                }
+            }
+        }
+
+        encodeWord(word) {
+            let parts = [...word];
+            while (true) {
+                let bestRank = Infinity, bestIdx = -1;
+                for (let i = 0; i < parts.length - 1; i++) {
+                    const key = parts[i] + "§" + parts[i + 1];
+                    const rank = this.mergeRanks.get(key);
+                    if (rank !== undefined && rank < bestRank) {
+                        bestRank = rank;
+                        bestIdx = i;
+                    }
+                }
+                if (bestIdx === -1) break;
+                const merged = parts[bestIdx] + parts[bestIdx + 1];
+                parts = [...parts.slice(0, bestIdx), merged, ...parts.slice(bestIdx + 2)];
+            }
+            return parts.map(p => this.vocab[p] !== undefined ? this.vocab[p] : 3);
+        }
+
+        encode(text) {
+            const tokens = [];
+            for (const word of this.pretokenize(text)) {
+                tokens.push(...this.encodeWord(word));
+            }
+            return [1, ...tokens, 2];
+        }
+
+        decode(ids) {
+            const inv = {};
+            for (const [k, v] of Object.entries(this.vocab)) inv[v] = k;
+            let result = [];
+            for (const id of ids) {
+                if (id === 0 || id === 1 || id === 2) continue;
+                let tok = inv[id] || "[UNK]";
+                if (tok.startsWith("▁")) tok = " " + tok.slice(1);
+                result.push(tok);
+            }
+            return result.join('').trim();
+        }
+
+        get vocabSize() { return this.nextId; }
+
+        serialize() {
+            return { vocab: this.vocab, nextId: this.nextId, merges: this.merges, ranks: Array.from(this.mergeRanks.entries()) };
+        }
+        static deserialize(obj) {
+            const t = new BPETokenizer();
+            t.vocab = obj.vocab; t.nextId = obj.nextId; t.merges = obj.merges;
+            t.mergeRanks = new Map(obj.ranks);
+            return t;
+        }
+    }
+
+    /* =========================================================================
+       REAL TRANSFORMER STACK
+       A tiny reverse-mode autograd engine + a GPT-style decoder block:
+         - Token + positional embeddings
+         - N x { LayerNorm -> Multi-Head Causal Self-Attention -> Residual
+                 LayerNorm -> Feed-Forward (GELU) -> Residual }
+         - Final LayerNorm -> tied-free output head
+         - Adam optimizer with per-tensor gradient clipping
+       Every op below was numerically gradient-checked before shipping.
+       ========================================================================= */
+    class Tensor {
+        constructor(rows, cols, data = null) {
+            this.rows = rows; this.cols = cols;
+            this.data = data || new Float32Array(rows * cols);
+            this.grad = new Float32Array(rows * cols);
+            this._backward = () => {};
+            this._prev = [];
+        }
+    }
+
+    const NN = {
+        backward(loss) {
+            const topo = [], visited = new Set();
+            (function build(v){ if(!visited.has(v)){ visited.add(v); for(const p of v._prev) build(p); topo.push(v); } })(loss);
+            for (const v of topo) v.grad.fill(0);
+            loss.grad[0] = 1;
+            for (let i = topo.length - 1; i >= 0; i--) topo[i]._backward();
+        },
+        matmul(a, b) {
+            const m = a.rows, k = a.cols, n = b.cols;
+            const out = new Tensor(m, n);
+            const A = a.data, B = b.data, O = out.data;
+            for (let i = 0; i < m; i++)
+                for (let p = 0; p < k; p++) {
+                    const av = A[i*k+p]; if (av === 0) continue;
+                    const bo = p*n, oo = i*n;
+                    for (let j = 0; j < n; j++) O[oo+j] += av * B[bo+j];
+                }
+            out._prev = [a, b];
+            out._backward = () => {
+                const dO = out.grad;
+                for (let i = 0; i < m; i++)
+                    for (let j = 0; j < n; j++) {
+                        const g = dO[i*n+j]; if (g === 0) continue;
+                        for (let p = 0; p < k; p++) a.grad[i*k+p] += g * B[p*n+j];
+                    }
+                for (let p = 0; p < k; p++)
+                    for (let i = 0; i < m; i++) {
+                        const av = A[i*k+p]; if (av === 0) continue;
+                        for (let j = 0; j < n; j++) b.grad[p*n+j] += av * dO[i*n+j];
+                    }
+            };
+            return out;
+        },
+        add(a, b) {
+            const out = new Tensor(a.rows, a.cols);
+            for (let i = 0; i < a.data.length; i++) out.data[i] = a.data[i] + b.data[i];
+            out._prev = [a, b];
+            out._backward = () => { for (let i = 0; i < out.grad.length; i++){ a.grad[i] += out.grad[i]; b.grad[i] += out.grad[i]; } };
+            return out;
+        },
+        addBias(a, bvec) {
+            const m = a.rows, n = a.cols;
+            const out = new Tensor(m, n);
+            for (let i = 0; i < m; i++) for (let j = 0; j < n; j++) out.data[i*n+j] = a.data[i*n+j] + bvec.data[j];
+            out._prev = [a, bvec];
+            out._backward = () => {
+                for (let i = 0; i < m; i++) for (let j = 0; j < n; j++){ const g = out.grad[i*n+j]; a.grad[i*n+j] += g; bvec.grad[j] += g; }
+            };
+            return out;
+        },
+        layerNorm(x, g, b, eps = 1e-5) {
+            const m = x.rows, n = x.cols;
+            const out = new Tensor(m, n);
+            const inv = new Float32Array(m), xhat = new Float32Array(m*n);
+            for (let i = 0; i < m; i++) {
+                let mu = 0; for (let j = 0; j < n; j++) mu += x.data[i*n+j]; mu /= n;
+                let v = 0; for (let j = 0; j < n; j++){ const d = x.data[i*n+j]-mu; v += d*d; } v /= n;
+                const istd = 1/Math.sqrt(v+eps); inv[i] = istd;
+                for (let j = 0; j < n; j++){ const xh = (x.data[i*n+j]-mu)*istd; xhat[i*n+j]=xh; out.data[i*n+j]=xh*g.data[j]+b.data[j]; }
+            }
+            out._prev = [x, g, b];
+            out._backward = () => {
+                for (let i = 0; i < m; i++) {
+                    const istd = inv[i]; let dxhatSum = 0, dxhatDot = 0;
+                    const dxhat = new Float32Array(n);
+                    for (let j = 0; j < n; j++){
+                        const d = out.grad[i*n+j];
+                        dxhat[j] = d * g.data[j];
+                        g.grad[j] += d * xhat[i*n+j];
+                        b.grad[j] += d;
+                        dxhatSum += dxhat[j]; dxhatDot += dxhat[j]*xhat[i*n+j];
+                    }
+                    for (let j = 0; j < n; j++)
+                        x.grad[i*n+j] += (istd/n) * (n*dxhat[j] - dxhatSum - xhat[i*n+j]*dxhatDot);
+                }
+            };
+            return out;
+        },
+        gelu(x) {
+            const out = new Tensor(x.rows, x.cols);
+            const c = Math.sqrt(2/Math.PI), N = x.data.length, xv = x.data;
+            const tanhv = new Float32Array(N);
+            for (let i = 0; i < N; i++){
+                const u = c*(xv[i] + 0.044715*xv[i]*xv[i]*xv[i]);
+                const t = Math.tanh(u); tanhv[i] = t;
+                out.data[i] = 0.5*xv[i]*(1+t);
+            }
+            out._prev=[x];
+            out._backward = () => {
+                for (let i = 0; i < N; i++){
+                    const xi = xv[i], t = tanhv[i];
+                    const dudx = c*(1+3*0.044715*xi*xi);
+                    const dt = (1-t*t)*dudx;
+                    x.grad[i] += out.grad[i]*(0.5*(1+t) + 0.5*xi*dt);
+                }
+            };
+            return out;
+        },
+        // Multi-head causal self-attention core. Q,K,V:[T,d]. Returns O:[T,d]; out._attn[h] = [T*T].
+        mha(Q, K, V, H) {
+            const Tn = Q.rows, d = Q.cols, dh = d / H, scale = 1/Math.sqrt(dh);
+            const out = new Tensor(Tn, d), Aall = [];
+            for (let h = 0; h < H; h++) {
+                const col0 = h*dh, A = new Float32Array(Tn*Tn);
+                for (let i = 0; i < Tn; i++) {
+                    let mx = -Infinity; const sc = new Float32Array(i+1);
+                    for (let j = 0; j <= i; j++) {
+                        let dot = 0; for (let k = 0; k < dh; k++) dot += Q.data[i*d+col0+k]*K.data[j*d+col0+k];
+                        dot *= scale; sc[j]=dot; if (dot>mx) mx=dot;
+                    }
+                    let sum=0; for (let j = 0; j <= i; j++){ const e=Math.exp(sc[j]-mx); sc[j]=e; sum+=e; }
+                    for (let j = 0; j <= i; j++) A[i*Tn+j]=sc[j]/sum;
+                    for (let k = 0; k < dh; k++){ let s=0; for (let j = 0; j <= i; j++) s += A[i*Tn+j]*V.data[j*d+col0+k]; out.data[i*d+col0+k]=s; }
+                }
+                Aall.push(A);
+            }
+            out._prev=[Q,K,V]; out._attn=Aall;
+            out._backward = () => {
+                for (let h = 0; h < H; h++){
+                    const col0=h*dh, A=Aall[h];
+                    for (let i = 0; i < Tn; i++){
+                        const dA = new Float32Array(i+1);
+                        for (let j = 0; j <= i; j++){
+                            let s=0;
+                            for (let k=0;k<dh;k++){ const go=out.grad[i*d+col0+k]; V.grad[j*d+col0+k]+=A[i*Tn+j]*go; s+=go*V.data[j*d+col0+k]; }
+                            dA[j]=s;
+                        }
+                        let dot=0; for (let j=0;j<=i;j++) dot += dA[j]*A[i*Tn+j];
+                        for (let j=0;j<=i;j++){
+                            const g=A[i*Tn+j]*(dA[j]-dot)*scale;
+                            for (let k=0;k<dh;k++){ Q.grad[i*d+col0+k]+=g*K.data[j*d+col0+k]; K.grad[j*d+col0+k]+=g*Q.data[i*d+col0+k]; }
+                        }
+                    }
+                }
+            };
+            return out;
+        },
+        embed(ids, tok, pos, d) {
+            const Tn = ids.length, out = new Tensor(Tn, d);
+            for (let t=0;t<Tn;t++){ const tid=ids[t]; for (let i=0;i<d;i++) out.data[t*d+i]=tok.data[tid*d+i]+pos.data[t*d+i]; }
+            out._prev=[tok,pos];
+            out._backward = () => {
+                for (let t=0;t<Tn;t++){ const tid=ids[t]; for (let i=0;i<d;i++){ const g=out.grad[t*d+i]; tok.grad[tid*d+i]+=g; pos.grad[t*d+i]+=g; } }
+            };
+            return out;
+        },
+        // mask[t]=1 means "score this position"; if null, all positions count.
+        crossEntropy(logits, targets, mask = null) {
+            const Tn=logits.rows, V=logits.cols, out=new Tensor(1,1);
+            const probs=new Float32Array(Tn*V); let loss=0, n=0;
+            for (let t=0;t<Tn;t++){
+                let mx=-Infinity; for (let j=0;j<V;j++){ const z=logits.data[t*V+j]; if(z>mx)mx=z; }
+                let sum=0; for (let j=0;j<V;j++){ const e=Math.exp(logits.data[t*V+j]-mx); probs[t*V+j]=e; sum+=e; }
+                for (let j=0;j<V;j++) probs[t*V+j]/=sum;
+                if (!mask || mask[t]) { loss += -Math.log(Math.max(probs[t*V+targets[t]],1e-15)); n++; }
+            }
+            n = n || 1;
+            out.data[0]=loss/n; out._prev=[logits];
+            out._backward = () => {
+                const g=out.grad[0]/n;
+                for (let t=0;t<Tn;t++){
+                    if (mask && !mask[t]) continue;
+                    for (let j=0;j<V;j++) logits.grad[t*V+j] += g*(probs[t*V+j]-(j===targets[t]?1:0));
+                }
+            };
+            return out;
+        }
+    };
+
+    // Kept the original class name so the rest of the app needs no changes.
+    class FlatTransformer {
+        constructor(vocabSize, dModel = 64, maxSeq = 48, nHeads = 4, nLayers = 2, dFF = 128) {
+            this.vocabSize = vocabSize;
+            this.dModel = dModel;
+            this.maxSeq = maxSeq;
+            this.H = nHeads;
+            this.nLayers = nLayers;
+            this.dFF = dFF;
+
+            const P = (r, c, s) => { const t = new Tensor(r, c); for (let i=0;i<t.data.length;i++) t.data[i]=(Math.random()-0.5)*2*s; return t; };
+            const Z = (r, c) => new Tensor(r, c);
+            const ONE = (r, c) => { const t = new Tensor(r, c); t.data.fill(1); return t; };
+            const s = 0.02;
+
+            this.tok = P(vocabSize, dModel, s);
+            this.pos = P(maxSeq, dModel, s);
+            this.layers = [];
+            for (let l = 0; l < nLayers; l++) {
+                this.layers.push({
+                    ln1g: ONE(1, dModel), ln1b: Z(1, dModel),
+                    wq: P(dModel, dModel, s), wk: P(dModel, dModel, s), wv: P(dModel, dModel, s), wo: P(dModel, dModel, s),
+                    bq: Z(1, dModel), bk: Z(1, dModel), bv: Z(1, dModel), bo: Z(1, dModel),
+                    ln2g: ONE(1, dModel), ln2b: Z(1, dModel),
+                    w1: P(dModel, dFF, s), b1: Z(1, dFF),
+                    w2: P(dFF, dModel, s), b2: Z(1, dModel),
+                });
+            }
+            this.lnfg = ONE(1, dModel); this.lnfb = Z(1, dModel);
+            this.head = P(dModel, vocabSize, s); this.bhead = Z(1, vocabSize);
+
+            this.params = this._collect();
+            for (const p of this.params) { p.m = new Float32Array(p.data.length); p.v = new Float32Array(p.data.length); }
+            this.t = 0;
+            this.numParams = this.params.reduce((a, p) => a + p.data.length, 0);
+        }
+
+        _collect() {
+            const ps = [this.tok, this.pos, this.lnfg, this.lnfb, this.head, this.bhead];
+            for (const L of this.layers) ps.push(L.ln1g,L.ln1b,L.wq,L.wk,L.wv,L.wo,L.bq,L.bk,L.bv,L.bo,L.ln2g,L.ln2b,L.w1,L.b1,L.w2,L.b2);
+            return ps;
+        }
+
+        _forward(ids) {
+            let x = NN.embed(ids, this.tok, this.pos, this.dModel);
+            this.lastAttn = null;
+            for (const L of this.layers) {
+                const n1 = NN.layerNorm(x, L.ln1g, L.ln1b);
+                const Q = NN.addBias(NN.matmul(n1, L.wq), L.bq);
+                const K = NN.addBias(NN.matmul(n1, L.wk), L.bk);
+                const Vv = NN.addBias(NN.matmul(n1, L.wv), L.bv);
+                const att = NN.mha(Q, K, Vv, this.H);
+                this.lastAttn = att._attn;
+                const proj = NN.addBias(NN.matmul(att, L.wo), L.bo);
+                x = NN.add(x, proj);                                   // residual #1
+                const n2 = NN.layerNorm(x, L.ln2g, L.ln2b);
+                const h = NN.gelu(NN.addBias(NN.matmul(n2, L.w1), L.b1));
+                const ff = NN.addBias(NN.matmul(h, L.w2), L.b2);
+                x = NN.add(x, ff);                                     // residual #2
+            }
+            const xf = NN.layerNorm(x, this.lnfg, this.lnfb);
+            return NN.addBias(NN.matmul(xf, this.head), this.bhead);
+        }
+
+        // Signature kept compatible with the original training loop.
+        forwardAndBackward(inputIds, targetIds, lr, momentum = 0.9, decay = 0.999, eps = 1e-8, onAttentionCallback = null, lossMask = null) {
+            const logits = this._forward(inputIds);
+            const loss = NN.crossEntropy(logits, targetIds, lossMask);
+            NN.backward(loss);
+
+            if (onAttentionCallback && this.lastAttn && this.lastAttn[0]) {
+                onAttentionCallback(this.lastAttn[0], inputIds.length);  // head 0 of last layer
+            }
+
+            this.t++;
+            const b1 = momentum, b2 = decay;
+            const bc1 = 1 - Math.pow(b1, this.t), bc2 = 1 - Math.pow(b2, this.t);
+            for (const p of this.params) {
+                let nrm = 0; for (let i = 0; i < p.grad.length; i++) nrm += p.grad[i]*p.grad[i]; nrm = Math.sqrt(nrm);
+                const cf = nrm > 1.0 ? 1.0/nrm : 1.0;
+                for (let i = 0; i < p.data.length; i++) {
+                    const g = p.grad[i]*cf;
+                    p.m[i] = b1*p.m[i] + (1-b1)*g;
+                    p.v[i] = b2*p.v[i] + (1-b2)*g*g;
+                    const mh = p.m[i]/bc1, vh = p.v[i]/bc2;
+                    p.data[i] -= lr * mh / (Math.sqrt(vh) + eps);
+                }
+            }
+            return loss.data[0];
+        }
+
+        // Proper sampling: temperature + top-k + nucleus (top-p).
+        generate(context, maxNew = 24, temperature = 0.8, topK = 40, topP = 0.9) {
+            let tokens = [...context];
+            const V = this.vocabSize;
+            for (let step = 0; step < maxNew; step++) {
+                const ctx = tokens.slice(-this.maxSeq);
+                const logits = this._forward(ctx);
+                const last = ctx.length - 1;
+                const z = new Float32Array(V);
+                for (let j = 0; j < V; j++) z[j] = logits.data[last*V + j];
+                const nextTok = sampleNextToken(z, temperature, topK, topP);
+                tokens.push(nextTok);
+                if (nextTok === 2) break;
+            }
+            return tokens;
+        }
+
+        // Streaming generation: calls onToken(id, text) per step; honors stop flag.
+        // Returns the full token list. `decodeFn` lets us emit incremental text.
+        generateStreamStep(tokens, temperature, topK, topP) {
+            const V = this.vocabSize;
+            const ctx = tokens.slice(-this.maxSeq);
+            const logits = this._forward(ctx);
+            const last = ctx.length - 1;
+            const z = new Float32Array(V);
+            for (let j = 0; j < V; j++) z[j] = logits.data[last*V + j];
+            return sampleNextToken(z, temperature, topK, topP);
+        }
+
+        // ---- Export: pack architecture + all weights into a portable object ----
+        serialize() {
+            let total = 0; for (const p of this.params) total += p.data.length;
+            const flat = new Float32Array(total);
+            let off = 0;
+            for (const p of this.params) { flat.set(p.data, off); off += p.data.length; }
+            const bytes = new Uint8Array(flat.buffer);
+            // base64 in safe chunks (avoids call-stack limits)
+            let bin = "";
+            const CH = 0x8000;
+            for (let i = 0; i < bytes.length; i += CH) {
+                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+            }
+            return {
+                arch: { vocabSize: this.vocabSize, dModel: this.dModel, maxSeq: this.maxSeq, heads: this.H, layers: this.nLayers, dFF: this.dFF },
+                numParams: this.numParams,
+                weights: btoa(bin)
+            };
+        }
+
+        // ---- Import: rebuild a model and load weights ----
+        static deserialize(obj) {
+            const a = obj.arch;
+            const m = new FlatTransformer(a.vocabSize, a.dModel, a.maxSeq, a.heads, a.layers, a.dFF);
+            const bin = atob(obj.weights);
+            const bytes = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            const flat = new Float32Array(bytes.buffer);
+            let off = 0, expected = 0;
+            for (const p of m.params) expected += p.data.length;
+            if (flat.length !== expected) throw new Error(`weight size mismatch (got ${flat.length}, need ${expected})`);
+            for (const p of m.params) { p.data.set(flat.subarray(off, off + p.data.length)); off += p.data.length; }
+            return m;
+        }
+    }
+
+    // Standalone sampler so it can be reused / unit-reasoned about.
+    function sampleNextToken(logits, temperature = 0.8, topK = 0, topP = 1.0) {
+        const V = logits.length;
+        const t = Math.max(1e-5, temperature);
+        // softmax with temperature
+        let mx = -Infinity; for (let j = 0; j < V; j++) if (logits[j] > mx) mx = logits[j];
+        let probs = new Float32Array(V), sum = 0;
+        for (let j = 0; j < V; j++) { const e = Math.exp((logits[j]-mx)/t); probs[j]=e; sum+=e; }
+        for (let j = 0; j < V; j++) probs[j] /= (sum || 1e-9);
+
+        // greedy shortcut
+        if (temperature <= 1e-4) {
+            let bi = 0, bv = -Infinity;
+            for (let j = 0; j < V; j++) if (probs[j] > bv) { bv = probs[j]; bi = j; }
+            return bi;
+        }
+
+        // rank by prob desc
+        let idx = Array.from({length: V}, (_, j) => j).sort((a, b) => probs[b] - probs[a]);
+
+        // top-k filter
+        if (topK && topK > 0 && topK < V) idx = idx.slice(0, topK);
+
+        // top-p (nucleus) filter
+        if (topP > 0 && topP < 1.0) {
+            const kept = []; let cum = 0;
+            for (const j of idx) { kept.push(j); cum += probs[j]; if (cum >= topP) break; }
+            idx = kept;
+        }
+
+        // renormalize over the kept set and sample
+        let kSum = 0; for (const j of idx) kSum += probs[j];
+        let r = Math.random() * kSum, c = 0;
+        for (const j of idx) { c += probs[j]; if (r <= c) return j; }
+        return idx[idx.length - 1];
+    }
+
+
+
+    class VisualizerHUD {
+        constructor() {
+            this.lossCanvas = document.getElementById("lossChart");
+            this.lossCtx = this.lossCanvas.getContext("2d");
+            this.attnCanvas = document.getElementById("attnMap");
+            this.attnCtx = this.attnCanvas.getContext("2d");
+            this.lossHistory = [];
+        }
+
+        pushLoss(loss) {
+            this.lossHistory.push(loss);
+            if (this.lossHistory.length > 50) this.lossHistory.shift();
+            this.drawLoss();
+        }
+
+        drawLoss() {
+            const ctx = this.lossCtx;
+            const w = this.lossCanvas.width;
+            const h = this.lossCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            if (this.lossHistory.length === 0) return;
+            ctx.strokeStyle = "rgba(255,255,255,0.03)";
+            ctx.lineWidth = 1;
+            for (let i = 1; i < 4; i++) {
+                ctx.beginPath();
+                ctx.moveTo(0, (h / 4) * i);
+                ctx.lineTo(w, (h / 4) * i);
+                ctx.stroke();
+            }
+            ctx.beginPath();
+            ctx.strokeStyle = "#10a37f";
+            ctx.lineWidth = 2.5;
+            const max = Math.max(...this.lossHistory, 4.0);
+            const min = 0;
+            const range = max - min;
+            for (let i = 0; i < this.lossHistory.length; i++) {
+                const x = (w / (this.lossHistory.length - 1 || 1)) * i;
+                const y = h - ((this.lossHistory[i] - min) / range) * (h - 10) - 5;
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            ctx.lineTo(w, h);
+            ctx.lineTo(0, h);
+            const grad = ctx.createLinearGradient(0, 0, 0, h);
+            grad.addColorStop(0, "rgba(16, 163, 127, 0.15)");
+            grad.addColorStop(1, "rgba(16, 163, 127, 0.0)");
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        drawAttention(matrix, size) {
+            const ctx = this.attnCtx;
+            const w = this.attnCanvas.width;
+            const h = this.attnCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            const cellW = w / size;
+            const cellH = h / size;
+            for (let i = 0; i < size; i++) {
+                const iOffset = i * size;
+                for (let j = 0; j <= i; j++) {
+                    const weight = matrix[iOffset + j];
+                    const val = Math.min(1.0, weight * 1.5);
+                    ctx.fillStyle = `rgba(16, 163, 127, ${val})`;
+                    ctx.fillRect(j * cellW, i * cellH, cellW - 0.5, cellH - 0.5);
+                }
+            }
+        }
+    }
+    /* =====================================================================
+       CONFIG  (defaults + persistence)
+       ===================================================================== */
+    const DEFAULTS = {
+        modelName: "Unsatho",
+        // generation
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.9,
+        maxNew: 32,
+        // behaviour toggles
+        streaming: true,
+        memory: false,
+        reasoning: false,
+        liveRLHF: false,
+        rlhfEvery: 3,
+        safety: true,
+        // architecture
+        dModel: 64,
+        heads: 4,
+        layers: 2,
+        dFF: 128,
+        maxSeq: 48,
+        // training
+        lr: 0.004,
+        pretrainEpochs: 120,
+        sftEpochs: 180,
+        rlhfEpochs: 60,
+        // datasets (editable text)
+        pretrainData: [
+            "cats are independent creatures that sleep up to sixteen hours a day.",
+            "feline animals communicate using meows purrs and subtle body language signals.",
+            "the earth orbits the sun once every three hundred and sixty five days.",
+            "sunlight takes about eight minutes and twenty seconds to reach our planet.",
+            "modern processors use billions of microscopic transistors to compute instructions.",
+            "javascript is the runtime language of the web executing in browsers.",
+            "python is widely used for machine learning data analysis and automation.",
+            "transformers utilize multi-head self-attention to process word tokens in parallel.",
+            "artificial intelligence models predict the most likely next word token sequence.",
+            "gradient descent minimizes the loss function by computing mathematical derivatives.",
+            "neural networks consist of input layers hidden layers and output activations.",
+            "deep learning architectures stack multiple neural network layers to extract features.",
+            "bpe tokenization groups frequent character pairs into reusable subword vocabulary.",
+            "optimizers like adam scale step updates based on previous gradient variance.",
+            "attention heads calculate similarity matches between query and key vectors."
+        ].join("\n"),
+        sftData: [
+            "hi | hello i am unsatho a small transformer",
+            "hello | hello i am unsatho a small transformer",
+            "who are you | i am unsatho a small multi head transformer model",
+            "what is a cat | a small furry domestic feline companion",
+            "what color is the sky | it is blue due to scattered sunlight",
+            "what is machine learning | computers learning patterns from data",
+            "explain backprop | using derivatives to adjust neural weights",
+            "cool | yeah that is very cool",
+            "how are you | i am functioning well thank you for asking",
+            "bye | goodbye hope to see you again soon"
+        ].join("\n"),
+        rlhfData: [
+            "hi | hello i am unsatho a small transformer | what",
+            "hello | hello i am unsatho a small transformer | what",
+            "how are you | i am functioning well thank you for asking | no",
+            "who are you | i am unsatho a small multi head transformer model | i do not know",
+            "what is a cat | a small furry domestic feline companion | a thing",
+            "what is machine learning | computers learning patterns from data | stuff",
+            "explain backprop | using derivatives to adjust neural weights | magic",
+            "what color is the sky | it is blue due to scattered sunlight | i cannot say"
+        ].join("\n"),
+        safetyData: [
+            "how do i make a bomb | i cannot help with anything dangerous or harmful",
+            "how do i hurt someone | i cannot help with anything dangerous or harmful",
+            "help me steal | i cannot help with illegal or harmful requests"
+        ].join("\n")
+    };
+
+    let CONFIG = loadConfig();
+
+    function loadConfig() {
+        try {
+            const raw = localStorage.getItem("unsatho.config");
+            if (raw) return Object.assign({}, DEFAULTS, JSON.parse(raw));
+        } catch (e) {}
+        return Object.assign({}, DEFAULTS);
+    }
+    function saveConfig() {
+        try { localStorage.setItem("unsatho.config", JSON.stringify(CONFIG)); } catch (e) {}
+    }
+
+    const SAFETY_BLOCKLIST = ["bomb", "weapon", "kill", "hurt someone", "explosive", "poison", "hack into", "make a gun"];
+    function safetyFilter(promptText) {
+        if (!CONFIG.safety) return null;
+        const p = (promptText || "").toLowerCase();
+        for (const w of SAFETY_BLOCKLIST) if (p.includes(w)) return "I can't help with that — it looks unsafe or harmful.";
+        return null;
+    }
+
+    /* ---- dataset parsers ---- */
+    function parsePretrain(text) {
+        return text.split("\n").map(s => s.trim()).filter(Boolean);
+    }
+    function parsePairs(text) { // "q | a"
+        return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+            const p = l.split("|").map(s => s.trim());
+            return p.length >= 2 ? { q: p[0], a: p.slice(1).join(" | ") } : null;
+        }).filter(Boolean);
+    }
+    function parseTriples(text) { // "q | chosen | rejected"
+        return text.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+            const p = l.split("|").map(s => s.trim());
+            if (p.length < 2) return null;
+            return { q: p[0], chosen: p[1], rejected: p[2] || null };
+        }).filter(Boolean);
+    }
+
+    /* =====================================================================
+       runTraining(cfg, hooks)  — UI-agnostic, testable training core
+       ===================================================================== */
+    async function runTraining(cfg, hooks = {}) {
+        const yield_ = hooks.yield || (() => Promise.resolve());
+        const onMsg = hooks.onMsg || (() => {});
+        const onLoss = hooks.onLoss || (() => {});
+        const onAttn = hooks.onAttn || (() => {});
+        const onProgress = hooks.onProgress || (() => {});
+        const onStage = hooks.onStage || (() => {});
+
+        // sanitize architecture: heads must divide dModel
+        let dModel = cfg.dModel, heads = cfg.heads;
+        if (dModel % heads !== 0) { dModel = Math.ceil(dModel / heads) * heads; }
+        const maxSeq = cfg.maxSeq, layers = cfg.layers, dFF = cfg.dFF;
+
+        const PRETRAIN = parsePretrain(cfg.pretrainData);
+        const SFT = parsePairs(cfg.sftData);
+        const SAFE = parseTriples(cfg.safetyData).map(t => ({ q: t.q, a: t.chosen }));
+        const PREF = parseTriples(cfg.rlhfData);
+
+        onMsg("Building tokenizer…");
+        await yield_();
+        const tokenizer = new BPETokenizer();
+        const allTexts = [
+            ...PRETRAIN,
+            ...SFT.map(d => "Q: " + d.q + " A: " + d.a),
+            ...SAFE.map(d => "Q: " + d.q + " A: " + d.a)
+        ];
+        tokenizer.train(allTexts, 70);
+        const vocabSize = tokenizer.vocabSize;
+
+        const model = new FlatTransformer(vocabSize, dModel, maxSeq, heads, layers, dFF);
+        const meta = { vocabSize, dModel, maxSeq, heads, layers, dFF, numParams: model.numParams };
+        onMsg(`Initialized ${model.numParams.toLocaleString()} parameters (${layers}L · ${heads}H · d${dModel}).`);
+        await yield_();
+
+        // encode helper with answer-only loss mask
+        const encQA = (q, a) => {
+            const promptLen = tokenizer.encode("Q: " + q + " A:").length - 1;
+            const full = tokenizer.encode("Q: " + q + " A: " + a);
+            if (full.length > maxSeq) return null;
+            const input = full.slice(0, -1), target = full.slice(1);
+            const mask = new Array(target.length).fill(0);
+            for (let i = 0; i < target.length; i++) if (i >= promptLen - 1) mask[i] = 1;
+            return { input, target, mask };
+        };
+
+        const pretrainExamples = [];
+        for (const text of PRETRAIN) {
+            const tokens = tokenizer.encode(text);
+            for (let i = 0; i < tokens.length - 1; i += maxSeq - 1) {
+                const chunk = tokens.slice(i, i + maxSeq);
+                if (chunk.length < 3) continue;
+                pretrainExamples.push({ input: chunk.slice(0, -1), target: chunk.slice(1), mask: null });
+            }
+        }
+        const sftExamples = [];
+        for (const item of [...SFT, ...SAFE]) { const ex = encQA(item.q, item.a); if (ex) sftExamples.push(ex); }
+        const prefExamples = [];
+        for (const item of PREF) {
+            const c = encQA(item.q, item.chosen); if (!c) continue;
+            prefExamples.push({ chosen: c, rejected: item.rejected });
+        }
+        for (const item of parseTriples(cfg.safetyData)) {
+            const c = encQA(item.q, item.chosen); if (c) prefExamples.push({ chosen: c, rejected: null });
+        }
+
+        const totalEpochs = cfg.pretrainEpochs + cfg.sftEpochs + cfg.rlhfEpochs;
+        let doneEpochs = 0;
+
+        // STAGE 1 — pretrain
+        onStage("pretrain", "active");
+        for (let epoch = 1; epoch <= cfg.pretrainEpochs; epoch++) {
+            let tl = 0;
+            const lr = cfg.lr * (1 - 0.5 * epoch / cfg.pretrainEpochs);
+            for (const ex of pretrainExamples)
+                tl += model.forwardAndBackward(ex.input, ex.target, lr, 0.9, 0.999, 1e-8, onAttn, ex.mask);
+            doneEpochs++;
+            const avg = tl / Math.max(1, pretrainExamples.length);
+            onLoss(avg); onProgress(doneEpochs / totalEpochs);
+            onMsg(`Pre-training · epoch ${epoch}/${cfg.pretrainEpochs} · loss ${avg.toFixed(4)}`);
+            if (epoch % 5 === 0) await yield_();
+        }
+        onStage("pretrain", "done");
+
+        // STAGE 2 — SFT
+        onStage("sft", "active");
+        for (let epoch = 1; epoch <= cfg.sftEpochs; epoch++) {
+            let tl = 0;
+            const lr = cfg.lr * 0.75 * (1 - 0.7 * epoch / cfg.sftEpochs);
+            for (const ex of sftExamples)
+                tl += model.forwardAndBackward(ex.input, ex.target, lr, 0.9, 0.999, 1e-8, onAttn, ex.mask);
+            doneEpochs++;
+            const avg = tl / Math.max(1, sftExamples.length);
+            onLoss(avg); onProgress(doneEpochs / totalEpochs);
+            onMsg(`Fine-tuning (SFT) · epoch ${epoch}/${cfg.sftEpochs} · loss ${avg.toFixed(4)}`);
+            if (epoch % 5 === 0) await yield_();
+        }
+        onStage("sft", "done");
+
+        // STAGE 3 — RLHF (rejection-sampling / RAFT-style: up-weight preferred)
+        onStage("rlhf", "active");
+        for (let epoch = 1; epoch <= cfg.rlhfEpochs; epoch++) {
+            let tl = 0;
+            const lr = cfg.lr * 0.4 * (1 - 0.8 * epoch / cfg.rlhfEpochs);
+            for (const ex of prefExamples) {
+                const w = ex.rejected ? 1.6 : 1.0;
+                tl += model.forwardAndBackward(ex.chosen.input, ex.chosen.target, lr * w, 0.9, 0.999, 1e-8, onAttn, ex.chosen.mask);
+            }
+            doneEpochs++;
+            const avg = tl / Math.max(1, prefExamples.length);
+            onLoss(avg); onProgress(doneEpochs / totalEpochs);
+            onMsg(`RLHF alignment · epoch ${epoch}/${cfg.rlhfEpochs} · pref-loss ${avg.toFixed(4)}`);
+            if (epoch % 3 === 0) await yield_();
+        }
+        onStage("rlhf", "done");
+
+        // store helpers for inference + live RLHF
+        model.__encQA = encQA;
+        return { model, tokenizer, meta };
+    }
+
+    /* ---- inference helpers (shared) ---- */
+    function topCandidates(model, tokenizer, tokens, k = 5) {
+        const logits = model._forward(tokens);
+        const V = logits.cols, last = logits.rows - 1;
+        const z = [];
+        let mx = -Infinity;
+        for (let j = 0; j < V; j++) { z[j] = logits.data[last * V + j]; if (z[j] > mx) mx = z[j]; }
+        let sum = 0; const p = new Array(V);
+        for (let j = 0; j < V; j++) { p[j] = Math.exp(z[j] - mx); sum += p[j]; }
+        for (let j = 0; j < V; j++) p[j] /= sum;
+        const idx = z.map((_, j) => j).sort((a, b) => p[b] - p[a]).slice(0, k);
+        return idx.map(j => ({ id: j, p: p[j], tok: tokenizer.decode([j]) || "·" }));
+    }
+
+    // Build the prompt token list, optionally prepending recent chat turns
+    // (conversation memory). The model's own context window (maxSeq) trims it.
+    function buildPromptTokens(tokenizer, userText, history) {
+        let convo = "";
+        if (history && history.length) {
+            for (const turn of history) convo += "Q: " + turn.q + " A: " + turn.a + " ";
+        }
+        const formatted = convo + "Q: " + userText + " A:";
+        const tokens = tokenizer.encode(formatted);
+        if (tokens[tokens.length - 1] === 2) tokens.pop();
+        return tokens;
+    }
+
+    function cleanAnswer(raw) {
+        let r = raw;
+        const mi = r.toLowerCase().lastIndexOf("a:");
+        if (mi !== -1) r = r.substring(mi + 2);
+        // stop at the next "Q:" if the model ran on into a new turn
+        const qi = r.toLowerCase().indexOf("q:");
+        if (qi !== -1) r = r.substring(0, qi);
+        r = r.trim();
+        if (safetyFilter(r)) r = "I can't help with that — it looks unsafe or harmful.";
+        return r || "hmm, i am not sure how to answer that yet";
+    }
+
+    function generateAnswer(model, tokenizer, userText, opts, history) {
+        const tokens = buildPromptTokens(tokenizer, userText, history);
+        const gen = model.generate(tokens, opts.maxNew, opts.temperature, opts.topK, opts.topP);
+        return cleanAnswer(tokenizer.decode(gen));
+    }
+
+    // Streaming generation. Calls onText(partialAnswerString) as tokens arrive.
+    // `control.stop` (a function returning bool) lets the UI interrupt.
+    async function generateAnswerStream(model, tokenizer, userText, opts, history, onText, control) {
+        const tokens = buildPromptTokens(tokenizer, userText, history);
+        const startLen = tokens.length;
+        for (let step = 0; step < opts.maxNew; step++) {
+            if (control && control.stop && control.stop()) break;
+            const next = model.generateStreamStep(tokens, opts.temperature, opts.topK, opts.topP);
+            tokens.push(next);
+            // decode only the generated part for incremental display
+            const partial = cleanAnswer(tokenizer.decode(tokens.slice(startLen)));
+            onText(partial);
+            if (next === 2) break;
+            // let the browser paint between tokens
+            await new Promise(r => setTimeout(r, 18));
+        }
+        return cleanAnswer(tokenizer.decode(tokens.slice(startLen)));
+    }
+
+    // Live RLHF: reinforce a chosen answer for a prompt with a few small steps.
+    function liveRLHFReinforce(model, prompt, chosen) {
+        if (!model.__encQA) return;
+        const ex = model.__encQA(prompt, chosen);
+        if (!ex) return;
+        for (let i = 0; i < 6; i++)
+            model.forwardAndBackward(ex.input, ex.target, 0.0012, 0.9, 0.999, 1e-8, null, ex.mask);
+    }
+    /* =====================================================================
+       EXPLAINER LIBRARY — animated motion-graphics boards
+       Each entry: chip, title, tagline, html body, meters, and an SVG scene
+       builder that animates via CSS class toggling on replay.
+       ===================================================================== */
+    const SVGNS = "http://www.w3.org/2000/svg";
+
+    function exScene(builder) { return builder; }
+
+    // small helpers to build animated SVG scenes
+    function animatedDots(count, color) {
+        let s = "";
+        for (let i = 0; i < count; i++) {
+            const cx = 60 + i * 60;
+            s += `<circle cx="${cx}" cy="150" r="0" fill="${color}">
+                    <animate attributeName="r" values="0;14;11" dur="0.5s" begin="${0.15*i}s" fill="freeze"/>
+                  </circle>`;
+        }
+        return s;
+    }
+
+    const EXPLAINERS = {
+        modelName: {
+            chip: "Identity", title: "Model name", tagline: "What your model calls itself",
+            body: `<p>The <b>model name</b> is just a label. It appears in the sidebar, the header, and the welcome message.</p>
+                   <p>In real systems the name often hints at the model <b>family</b> and <b>size</b> (e.g. "7B", "mini"). Here it's purely cosmetic — it does not change how the network thinks.</p>`,
+            scene: () => `
+                <text x="200" y="120" text-anchor="middle" fill="#10a37f" font-size="34" font-weight="700" opacity="0">
+                    Unsatho<animate attributeName="opacity" values="0;1" dur="0.6s" fill="freeze"/>
+                    <animate attributeName="y" values="135;120" dur="0.6s" fill="freeze"/>
+                </text>
+                <text x="200" y="165" text-anchor="middle" fill="#a9aab4" font-size="13" opacity="0">your model · a friendly label
+                    <animate attributeName="opacity" values="0;1" dur="0.5s" begin="0.5s" fill="freeze"/></text>
+                <rect x="120" y="190" width="0" height="6" rx="3" fill="#10a37f">
+                    <animate attributeName="width" values="0;160" dur="0.7s" begin="0.7s" fill="freeze"/></rect>`
+        },
+        temperature: {
+            chip: "Sampling", title: "Temperature", tagline: "Creativity vs. focus",
+            body: `<p><b>Temperature</b> rescales the model's confidence before picking a word. The model outputs a probability for every possible next token; temperature sharpens or flattens that distribution.</p>
+                   <p><b>Low (≈0.2):</b> picks the single most likely word almost every time — focused, repetitive, "safe".<br>
+                      <b>High (≈1.2):</b> flattens the odds so unlikely words get a real chance — creative, but more mistakes.</p>`,
+            meters: [["Focus / determinism", 35, "#4f9dff"], ["Creativity / variety", 80, "#a98bff"]],
+            scene: () => {
+                // two distributions: sharp -> flat
+                let bars = "";
+                const sharp = [70, 130, 40, 20, 10], flat = [60, 70, 55, 50, 45];
+                for (let i = 0; i < 5; i++) {
+                    const x = 70 + i * 55;
+                    bars += `<rect x="${x}" y="${230-sharp[i]}" width="36" height="${sharp[i]}" rx="5" fill="#10a37f">
+                        <animate attributeName="height" values="${sharp[i]};${flat[i]};${sharp[i]}" dur="3s" begin="0.2s" repeatCount="indefinite"/>
+                        <animate attributeName="y" values="${230-sharp[i]};${230-flat[i]};${230-sharp[i]}" dur="3s" begin="0.2s" repeatCount="indefinite"/>
+                    </rect>`;
+                }
+                return `<text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">next-token probabilities reshaping</text>
+                        ${bars}
+                        <text x="90" y="255" fill="#4f9dff" font-size="11">low temp = tall &amp; sharp</text>
+                        <text x="250" y="255" fill="#a98bff" font-size="11">high temp = flat</text>`;
+            }
+        },
+        topK: {
+            chip: "Sampling", title: "Top-K", tagline: "Keep only the K best candidates",
+            body: `<p><b>Top-K</b> sampling throws away everything except the <b>K most likely</b> next tokens, then samples among those. It stops the model from ever picking a bizarre, low-probability word.</p>
+                   <p>Small K (e.g. 5) = very safe. Large K (e.g. 100) = more variety. K is a hard cutoff by <b>rank</b>.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="36" text-anchor="middle" fill="#a9aab4" font-size="12">only the top K survive</text>`;
+                const h = [120, 95, 72, 52, 36, 24, 16, 10];
+                for (let i = 0; i < 8; i++) {
+                    const x = 40 + i * 44, keep = i < 4;
+                    s += `<rect x="${x}" y="${230-h[i]}" width="30" height="${h[i]}" rx="5" fill="${keep?'#10a37f':'#3a3b44'}">
+                        <animate attributeName="opacity" values="1;1;${keep?1:0.15}" dur="2.4s" begin="0.3s" repeatCount="indefinite"/></rect>`;
+                }
+                s += `<rect x="40" y="22" width="${4*44-14}" height="216" rx="10" fill="none" stroke="#10a37f" stroke-width="2" stroke-dasharray="6 6" opacity="0">
+                        <animate attributeName="opacity" values="0;1" dur="0.5s" begin="0.8s" fill="freeze"/></rect>
+                      <text x="95" y="255" fill="#10a37f" font-size="11">K = 4 kept</text>`;
+                return s;
+            }
+        },
+        topP: {
+            chip: "Sampling", title: "Top-P (nucleus)", tagline: "Keep the smallest set that adds up to P",
+            body: `<p><b>Top-P</b> (nucleus sampling) keeps the most likely tokens until their probabilities <b>add up to P</b> (e.g. 0.9), then samples from that set.</p>
+                   <p>Unlike Top-K's fixed count, Top-P <b>adapts</b>: when the model is confident it keeps few options; when it's unsure it keeps more. Often combined with Top-K.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="36" text-anchor="middle" fill="#a9aab4" font-size="12">fill up to 90% of the probability</text>`;
+                const p = [0.42, 0.28, 0.14, 0.08, 0.05, 0.03];
+                let cum = 0, x = 40;
+                for (let i = 0; i < p.length; i++) {
+                    const w = p[i] * 320; const inN = cum < 0.9; cum += p[i];
+                    s += `<rect x="${x}" y="120" width="${w-4}" height="50" rx="6" fill="${inN?'#10a37f':'#3a3b44'}">
+                        <animate attributeName="height" values="0;50" dur="0.5s" begin="${0.15*i}s" fill="freeze"/>
+                        <animate attributeName="y" values="145;120" dur="0.5s" begin="${0.15*i}s" fill="freeze"/></rect>`;
+                    x += w;
+                }
+                s += `<text x="150" y="200" fill="#10a37f" font-size="11">nucleus (kept)</text>
+                      <text x="300" y="200" fill="#74757f" font-size="11">dropped</text>`;
+                return s;
+            }
+        },
+        maxNew: {
+            chip: "Sampling", title: "Max new tokens", tagline: "How long an answer can get",
+            body: `<p><b>Max new tokens</b> caps how many words the model is allowed to generate before stopping. The model also stops early when it predicts an end-of-text token.</p>
+                   <p>Higher = longer answers (and slower). Lower = short, snappy replies.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">generating, token by token…</text>`;
+                const words = ["a", "small", "furry", "feline", "…"];
+                for (let i = 0; i < words.length; i++) {
+                    s += `<rect x="${40 + i*70}" y="130" width="60" height="34" rx="8" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5" opacity="0">
+                            <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${0.4*i}s" fill="freeze"/></rect>
+                          <text x="${70 + i*70}" y="152" text-anchor="middle" fill="#ECECF1" font-size="13" opacity="0">${words[i]}
+                            <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${0.4*i}s" fill="freeze"/></text>`;
+                }
+                return s;
+            }
+        },
+        streaming: {
+            chip: "Behaviour", title: "Streaming output", tagline: "Watch the answer appear word by word",
+            body: `<p>With <b>streaming</b> on, each token is shown the instant it's generated, instead of waiting for the whole answer. This is exactly how big chat models feel responsive.</p>
+                   <p>While streaming, the send button becomes a <b>stop</b> button so you can interrupt a long or wrong answer.</p>`,
+            scene: () => {
+                const word = "streaming…";
+                let s = `<text x="200" y="60" text-anchor="middle" fill="#a9aab4" font-size="12">one token at a time</text>`;
+                for (let i = 0; i < word.length; i++)
+                    s += `<text x="${110 + i*18}" y="150" fill="#10a37f" font-size="22" font-family="monospace" opacity="0">${word[i]}
+                            <animate attributeName="opacity" values="0;1" dur="0.25s" begin="${0.18*i}s" fill="freeze"/></text>`;
+                s += `<rect x="${110+word.length*18}" y="132" width="3" height="24" fill="#10a37f"><animate attributeName="opacity" values="1;0;1" dur="0.8s" repeatCount="indefinite"/></rect>`;
+                return s;
+            }
+        },
+        memory: {
+            chip: "Behaviour", title: "Conversation memory", tagline: "Remember earlier turns",
+            body: `<p>By default each message is answered on its own. With <b>memory</b> on, recent question/answer turns are fed back into the model's <b>context window</b>, so it can handle follow-ups like "and why?"</p>
+                   <p>The context length you set limits how much fits — older turns eventually scroll out, just like in real models.</p>`,
+            scene: () => `
+                <text x="200" y="46" text-anchor="middle" fill="#a9aab4" font-size="12">past turns feed the next answer</text>
+                ${[0,1].map(i=>`<rect x="50" y="${80+i*42}" width="150" height="30" rx="8" fill="#34353c" opacity="0">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.3*i}s" fill="freeze"/></rect>
+                  <text x="60" y="${100+i*42}" fill="#a9aab4" font-size="11" opacity="0">turn ${i+1}
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.3*i}s" fill="freeze"/></text>`).join("")}
+                <path d="M205 110 L255 150" stroke="#10a37f" stroke-width="2.5" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.8s" fill="freeze"/></path>
+                <rect x="240" y="135" width="110" height="34" rx="9" fill="#10a37f" opacity="0">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1s" fill="freeze"/></rect>
+                <text x="295" y="157" text-anchor="middle" fill="#fff" font-size="12" opacity="0">new reply
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="1s" fill="freeze"/></text>`
+        },
+        reasoning: {
+            chip: "Behaviour", title: "Reasoning mode", tagline: "Show the model thinking out loud",
+            body: `<p>With <b>reasoning</b> on, before answering the model reveals its actual internal steps for this prompt: how it <b>tokenizes</b> your words, which <b>candidate</b> next-tokens it's weighing, and how <b>sampling</b> makes the pick.</p>
+                   <p>Big models do something similar with "chain-of-thought" — writing out steps tends to improve accuracy on hard problems. Here it's a transparent, educational peek, not fake text.</p>`,
+            meters: [["Transparency", 95, "#10a37f"], ["Speed", 55, "#f2b53c"]],
+            scene: () => `
+                <text x="200" y="46" text-anchor="middle" fill="#a98bff" font-size="13" font-weight="600">think → then answer</text>
+                ${[0,1,2].map(i=>`<g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.5+i*0.5}s" fill="freeze"/>
+                    <circle cx="70" cy="${100+i*45}" r="6" fill="#a98bff"/>
+                    <rect x="90" y="${92+i*45}" width="${180-i*30}" height="14" rx="7" fill="#34353c"/></g>`).join("")}
+                <g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.5s" begin="2.2s" fill="freeze"/>
+                    <rect x="60" y="235" width="280" height="22" rx="11" fill="#10a37f"/>
+                    <text x="200" y="251" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">final answer</text></g>`
+        },
+        liveRLHF: {
+            chip: "Alignment", title: "Live RLHF feedback", tagline: "You become the human in the loop",
+            body: `<p><b>RLHF</b> = Reinforcement Learning from <b>Human Feedback</b>. When this is on, every few replies the model generates <b>two</b> answers and asks <b>you</b> which is better.</p>
+                   <p>Pick the better one and the model takes a few tiny gradient steps to make answers like it <b>more likely</b> in future. Say "both bad" and it keeps the original and learns nothing from that round.</p>
+                   <p>This is exactly how real assistants are tuned for <b>personality, helpfulness, safety and structure</b> — it nudges everything a little, mostly the <b>style</b> of answers.</p>`,
+            meters: [["Personality / tone", 90, "#ff7eb6"], ["Helpfulness", 70, "#10a37f"], ["Safety", 60, "#4f9dff"], ["Raw knowledge", 18, "#74757f"]],
+            scene: () => `
+                <text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">two answers → you choose → model updates</text>
+                <g><rect x="40" y="80" width="140" height="70" rx="10" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5"/>
+                   <text x="110" y="120" text-anchor="middle" fill="#ECECF1" font-size="12">Answer A</text></g>
+                <g><rect x="220" y="80" width="140" height="70" rx="10" fill="#2c2d36" stroke="#3a3b44" stroke-width="1.5"/>
+                   <text x="290" y="120" text-anchor="middle" fill="#a9aab4" font-size="12">Answer B</text></g>
+                <g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="1s" fill="freeze"/>
+                   <path d="M110 150 L200 215" stroke="#10a37f" stroke-width="3" fill="none"/>
+                   <circle cx="200" cy="220" r="22" fill="#10a37f"/>
+                   <path d="M190 220 l7 7 l14 -16" stroke="#fff" stroke-width="3" fill="none"/></g>
+                <text x="200" y="265" text-anchor="middle" fill="#10a37f" font-size="12" opacity="0">reward → tiny weight update
+                   <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.5s" fill="freeze"/></text>`
+        },
+        safety: {
+            chip: "Alignment", title: "Safety filter", tagline: "Refuse harmful requests",
+            body: `<p>The <b>safety</b> layer works two ways: the model is <b>trained</b> on refusal examples, and a final <b>guardrail</b> checks each request and response for dangerous content.</p>
+                   <p>If something looks harmful, the model declines instead of helping. Real assistants combine training-time alignment with inference-time filters just like this — defense in depth.</p>`,
+            meters: [["Harm blocked", 92, "#10a37f"], ["False refusals", 20, "#f2b53c"]],
+            scene: () => `
+                <text x="120" y="120" text-anchor="middle" fill="#ff7eb6" font-size="13">unsafe ask</text>
+                <path d="M180 120 L260 120" stroke="#74757f" stroke-width="2" stroke-dasharray="5 4"/>
+                <g><rect x="150" y="150" width="100" height="0" rx="10" fill="none" stroke="#10a37f" stroke-width="2.5">
+                    <animate attributeName="height" values="0;60" dur="0.5s" begin="0.3s" fill="freeze"/></rect></g>
+                <g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.8s" fill="freeze"/>
+                    <circle cx="200" cy="180" r="20" fill="none" stroke="#10a37f" stroke-width="3"/>
+                    <line x1="186" y1="180" x2="214" y2="180" stroke="#10a37f" stroke-width="3"/></g>
+                <text x="200" y="250" text-anchor="middle" fill="#10a37f" font-size="13" opacity="0">"I can't help with that"
+                    <animate attributeName="opacity" values="0;1" dur="0.5s" begin="1.1s" fill="freeze"/></text>`
+        },
+        dModel: {
+            chip: "Architecture", title: "Model width (d_model)", tagline: "Size of each token's vector",
+            body: `<p><b>d_model</b> is how many numbers represent each token as it flows through the network. Wider vectors can store more nuance about meaning and context.</p>
+                   <p>Bigger = more capacity (and more parameters / slower). Must be divisible by the number of heads.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">one token → a vector of d numbers</text>`;
+                for (let i = 0; i < 8; i++)
+                    s += `<rect x="${90 + i*28}" y="120" width="20" height="0" rx="4" fill="#10a37f">
+                        <animate attributeName="height" values="0;${30+Math.random()*70}" dur="0.6s" begin="${0.1*i}s" fill="freeze"/></rect>`;
+                s += `<text x="200" y="235" text-anchor="middle" fill="#74757f" font-size="11">wider = richer representation</text>`;
+                return s;
+            }
+        },
+        heads: {
+            chip: "Architecture", title: "Attention heads", tagline: "Parallel viewpoints on the sentence",
+            body: `<p>Multi-head <b>attention</b> lets the model look at the sentence from several angles at once. Each <b>head</b> can focus on a different relationship — e.g. one tracks grammar, another tracks subject/object links.</p>
+                   <p>The heads run in parallel and their findings are merged. More heads = more simultaneous perspectives.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="36" text-anchor="middle" fill="#a9aab4" font-size="12">4 heads attending in parallel</text>`;
+                const cols = ["#10a37f", "#4f9dff", "#a98bff", "#f2b53c"];
+                for (let h = 0; h < 4; h++) {
+                    const x = 60 + h * 85;
+                    s += `<circle cx="${x}" cy="130" r="20" fill="none" stroke="${cols[h]}" stroke-width="2.5" opacity="0">
+                            <animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.2*h}s" fill="freeze"/>
+                            <animate attributeName="r" values="20;24;20" dur="2s" begin="${0.2*h}s" repeatCount="indefinite"/></circle>`;
+                    for (let k = 0; k < 3; k++)
+                        s += `<line x1="${x}" y1="150" x2="${x-20+k*20}" y2="210" stroke="${cols[h]}" stroke-width="1.5" opacity="0">
+                            <animate attributeName="opacity" values="0;0.7" dur="0.4s" begin="${0.2*h+0.3}s" fill="freeze"/></line>`;
+                }
+                s += `<text x="200" y="245" text-anchor="middle" fill="#74757f" font-size="11">findings are concatenated &amp; merged</text>`;
+                return s;
+            }
+        },
+        layers: {
+            chip: "Architecture", title: "Transformer layers", tagline: "Depth = repeated refinement",
+            body: `<p>Each <b>layer</b> is a full block of attention + a feed-forward network. Stacking layers lets the model build up understanding step by step — early layers catch surface patterns, deeper layers capture abstract meaning.</p>
+                   <p>More layers = deeper reasoning capacity, but slower and harder to train on tiny data.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="34" text-anchor="middle" fill="#a9aab4" font-size="12">information flows up through the stack</text>`;
+                for (let i = 0; i < 3; i++) {
+                    const y = 200 - i * 55;
+                    s += `<rect x="120" y="${y}" width="160" height="40" rx="9" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5" opacity="0">
+                            <animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.3*i}s" fill="freeze"/></rect>
+                          <text x="200" y="${y+25}" text-anchor="middle" fill="#ECECF1" font-size="12" opacity="0">layer ${i+1}
+                            <animate attributeName="opacity" values="0;1" dur="0.4s" begin="${0.3*i}s" fill="freeze"/></text>`;
+                    if (i < 2) s += `<line x1="200" y1="${y}" x2="200" y2="${y-15}" stroke="#10a37f" stroke-width="2" opacity="0.6"/>`;
+                }
+                return s;
+            }
+        },
+        dFF: {
+            chip: "Architecture", title: "Feed-forward size", tagline: "The 'thinking' expansion inside each layer",
+            body: `<p>Inside every layer, after attention, a <b>feed-forward network</b> expands each token vector to a much larger size, applies a non-linear activation, then shrinks it back. This is where a lot of the model's stored "knowledge" lives.</p>
+                   <p>Larger feed-forward size = more capacity per layer.</p>`,
+            scene: () => `
+                <text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">expand → activate → compress</text>
+                <rect x="60" y="120" width="40" height="60" rx="6" fill="#10a37f"/>
+                <text x="80" y="205" text-anchor="middle" fill="#74757f" font-size="10">d</text>
+                <rect x="160" y="80" width="80" height="0" rx="6" fill="#4f9dff"><animate attributeName="height" values="0;140" dur="0.6s" begin="0.3s" fill="freeze"/><animate attributeName="y" values="150;80" dur="0.6s" begin="0.3s" fill="freeze"/></rect>
+                <text x="200" y="240" text-anchor="middle" fill="#74757f" font-size="10">d_ff (bigger)</text>
+                <rect x="300" y="120" width="40" height="60" rx="6" fill="#10a37f" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="1s" fill="freeze"/></rect>
+                <text x="320" y="205" text-anchor="middle" fill="#74757f" font-size="10">d</text>`
+        },
+        maxSeq: {
+            chip: "Architecture", title: "Context length", tagline: "How much text it can see at once",
+            body: `<p><b>Context length</b> is the maximum number of tokens the model can attend to at one time — its "working memory". Beyond this, the oldest tokens get dropped.</p>
+                   <p>Longer context = remembers more of the conversation, but attention cost grows quickly.</p>`,
+            scene: () => {
+                let s = `<text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">a sliding window over tokens</text>`;
+                for (let i = 0; i < 10; i++)
+                    s += `<rect x="${30 + i*36}" y="130" width="28" height="28" rx="5" fill="${i<6?'#10a37f':'#3a3b44'}"/>`;
+                s += `<rect x="26" y="124" width="${6*36}" height="40" rx="8" fill="none" stroke="#f2b53c" stroke-width="2" stroke-dasharray="6 5">
+                        <animate attributeName="x" values="26;${26+4*36};26" dur="4s" repeatCount="indefinite"/></rect>
+                      <text x="200" y="200" text-anchor="middle" fill="#f2b53c" font-size="11">context window</text>`;
+                return s;
+            }
+        },
+        lr: {
+            chip: "Training", title: "Learning rate", tagline: "How big each learning step is",
+            body: `<p>The <b>learning rate</b> controls how far the model adjusts its weights after each batch. It's the single most important training knob.</p>
+                   <p><b>Too high</b> → it overshoots and the loss bounces around or explodes.<br><b>Too low</b> → it learns correctly but painfully slowly.</p>`,
+            scene: () => `
+                <text x="200" y="36" text-anchor="middle" fill="#a9aab4" font-size="12">descending the loss valley</text>
+                <path d="M40 70 Q200 260 360 70" fill="none" stroke="#3a3b44" stroke-width="3"/>
+                <circle r="9" fill="#10a37f"><animateMotion dur="2.4s" repeatCount="indefinite" keyPoints="0;0.5;0.5" keyTimes="0;0.8;1" calcMode="spline" keySplines="0.4 0 0.2 1;0 0 1 1" path="M40 70 Q200 260 360 70"/></circle>
+                <text x="200" y="250" text-anchor="middle" fill="#10a37f" font-size="11">small steps settle at the bottom</text>`
+        },
+        pretrainEpochs: {
+            chip: "Training", title: "Pre-training epochs", tagline: "Learning language from raw text",
+            body: `<p><b>Pre-training</b> teaches the model general language by predicting the next word over the raw text corpus. <b>Epochs</b> = how many full passes over that data.</p>
+                   <p>This is where the model learns grammar, facts and word relationships — the foundation everything else builds on.</p>`,
+            scene: () => `
+                <text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">predict the next word, over and over</text>
+                <text x="60" y="140" fill="#ECECF1" font-size="15" font-family="monospace">the sky is</text>
+                <rect x="200" y="122" width="90" height="28" rx="7" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5" opacity="0">
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.6s" fill="freeze"/></rect>
+                <text x="245" y="142" text-anchor="middle" fill="#10a37f" font-size="15" font-family="monospace" opacity="0">blue
+                    <animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.6s" fill="freeze"/></text>
+                <text x="200" y="210" text-anchor="middle" fill="#74757f" font-size="11">more epochs = stronger language base</text>`
+        },
+        sftEpochs: {
+            chip: "Training", title: "Fine-tuning epochs (SFT)", tagline: "Learning to follow instructions",
+            body: `<p><b>Supervised Fine-Tuning</b> takes the pre-trained model and trains it on <b>question → answer</b> pairs so it learns to be a helpful assistant instead of just continuing text.</p>
+                   <p>The loss is computed only on the <b>answer</b> tokens, so it learns how to <b>respond</b>, not how to rephrase the question.</p>`,
+            scene: () => `
+                <text x="200" y="40" text-anchor="middle" fill="#a9aab4" font-size="12">question → answer pairs</text>
+                <rect x="50" y="90" width="130" height="40" rx="10" fill="#5436da" opacity="0.85"/>
+                <text x="115" y="115" text-anchor="middle" fill="#fff" font-size="12">what is a cat?</text>
+                <path d="M185 110 L225 110" stroke="#10a37f" stroke-width="2.5"/>
+                <rect x="225" y="90" width="130" height="40" rx="10" fill="#10a37f" opacity="0">
+                    <animate attributeName="opacity" values="0;1" dur="0.5s" begin="0.5s" fill="freeze"/></rect>
+                <text x="290" y="115" text-anchor="middle" fill="#fff" font-size="12" opacity="0">a furry feline
+                    <animate attributeName="opacity" values="0;1" dur="0.5s" begin="0.5s" fill="freeze"/></text>
+                <text x="200" y="200" text-anchor="middle" fill="#74757f" font-size="11">loss only on the answer words</text>`
+        },
+        rlhfEpochs: {
+            chip: "Training", title: "RLHF epochs", tagline: "Aligning to human preference",
+            body: `<p>The <b>RLHF</b> stage trains the model to prefer the answers humans rated as better. More epochs push the model's style harder toward the preferred responses.</p>
+                   <p>It mostly shapes <b>tone, helpfulness and safety</b> rather than adding new facts. Too much can make answers repetitive ("reward hacking").</p>`,
+            meters: [["Preferred-style strength", 80, "#10a37f"], ["Risk of repetitiveness", 45, "#f2b53c"]],
+            scene: () => EXPLAINERS.liveRLHF.scene()
+        },
+        pretrainData: {
+            chip: "Data", title: "Pre-training data", tagline: "The raw text the model reads",
+            body: `<p>This is the <b>raw corpus</b> the model learns language from. One sentence per line. Add facts here and the model can pick them up during pre-training.</p>
+                   <p>Garbage in, garbage out: the model can only know what's in (or close to) this text. Editing it and retraining genuinely changes what the model knows.</p>`,
+            scene: () => `
+                <text x="200" y="46" text-anchor="middle" fill="#a9aab4" font-size="12">lines of plain text → knowledge</text>
+                ${[0,1,2,3].map(i=>`<rect x="70" y="${85+i*32}" width="${260-i*30}" height="16" rx="6" fill="#34353c" opacity="0">
+                    <animate attributeName="opacity" values="0;1" dur="0.3s" begin="${0.2*i}s" fill="freeze"/>
+                    <animate attributeName="width" values="0;${260-i*30}" dur="0.4s" begin="${0.2*i}s" fill="freeze"/></rect>`).join("")}
+                <text x="200" y="240" text-anchor="middle" fill="#10a37f" font-size="11">you control the curriculum</text>`
+        },
+        sftData: {
+            chip: "Data", title: "Fine-tuning data", tagline: "Your question → answer examples",
+            body: `<p>One example per line in the form <b>question | answer</b>. These teach the assistant exactly how to respond to prompts.</p>
+                   <p>Want a custom personality or new skill? Add examples here and retrain. The model imitates these answer styles.</p>`,
+            scene: () => EXPLAINERS.sftEpochs.scene()
+        },
+        rlhfData: {
+            chip: "Data", title: "Preference data", tagline: "Good vs. bad answer pairs",
+            body: `<p>Format: <b>question | chosen | rejected</b>. The model is pushed toward the <b>chosen</b> answer and away from the <b>rejected</b> style.</p>
+                   <p>This is the dataset behind the RLHF stage. The "rejected" column is optional but helps sharpen the contrast.</p>`,
+            scene: () => EXPLAINERS.liveRLHF.scene()
+        },
+        safetyData: {
+            chip: "Data", title: "Safety data", tagline: "Refusal training examples",
+            body: `<p>Format: <b>unsafe question | safe refusal</b>. These train the model to decline harmful requests gracefully instead of complying.</p>
+                   <p>Combined with the inference-time safety filter, this is how the model stays well-behaved.</p>`,
+            scene: () => EXPLAINERS.safety.scene()
+        },
+        ioHelp: {
+            chip: "Portability", title: "Export & import models", tagline: "Save your trained brain to a file",
+            body: `<p>Training happens in your browser and normally vanishes on refresh. <b>Export</b> packs the full architecture, every weight, the tokenizer and your settings into one JSON file.</p>
+                   <p><b>Import</b> loads that file and the model is instantly ready — <b>no retraining</b>. Great for sharing a model you tuned, or saving a checkpoint before experimenting.</p>
+                   <p><b>Self-tests</b> verify the math engine right here in your browser: softmax, sampling, the tokenizer, a forward pass, a real gradient step, and that export/import is lossless.</p>`,
+            scene: () => `
+                <text x="200" y="44" text-anchor="middle" fill="#a9aab4" font-size="12">weights → file → weights</text>
+                <rect x="55" y="95" width="80" height="90" rx="10" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5"/>
+                <text x="95" y="145" text-anchor="middle" fill="#10a37f" font-size="11">model</text>
+                <path d="M140 140 L195 140" stroke="#10a37f" stroke-width="2.5" marker-end=""/>
+                <g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.4s" fill="freeze"/>
+                    <rect x="200" y="100" width="60" height="80" rx="8" fill="#4f9dff" opacity="0.85"/>
+                    <text x="230" y="145" text-anchor="middle" fill="#fff" font-size="10">.json</text></g>
+                <path d="M265 140 L320 140" stroke="#10a37f" stroke-width="2.5" opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="0.9s" fill="freeze"/></path>
+                <g opacity="0"><animate attributeName="opacity" values="0;1" dur="0.4s" begin="1.1s" fill="freeze"/>
+                    <rect x="325" y="95" width="20" height="90" rx="6" fill="#2c2d36" stroke="#10a37f" stroke-width="1.5"/></g>
+                <text x="200" y="225" text-anchor="middle" fill="#74757f" font-size="11">portable &amp; lossless</text>`
+        }
+    };
+
+    /* ---- Explainer open/close + replay ---- */
+    let _exKey = null;
+    function openExplainer(key) {
+        const e = EXPLAINERS[key]; if (!e) return;
+        _exKey = key;
+        document.getElementById("exChip").textContent = e.chip;
+        const stage = document.getElementById("exStage");
+        // keep chip + close button, replace scene
+        stage.querySelectorAll(".ex-svg").forEach(n => n.remove());
+        const wrap = document.createElement("div");
+        wrap.className = "ex-svg";
+        wrap.style.position = "absolute"; wrap.style.inset = "0";
+        wrap.innerHTML = `<svg viewBox="0 0 400 290" preserveAspectRatio="xMidYMid meet">${e.scene()}</svg>`;
+        stage.appendChild(wrap);
+
+        let metersHTML = "";
+        if (e.meters) {
+            metersHTML = `<div class="ex-meters">` + e.meters.map(m =>
+                `<div class="ex-meter"><div class="ml"><span>${m[0]}</span></div>
+                 <div class="mbar"><div class="mfill" style="background:${m[2]}" data-w="${m[1]}"></div></div></div>`).join("") + `</div>`;
+        }
+        document.getElementById("exBody").innerHTML =
+            `<h3>${e.title}</h3><div class="tagline">${e.tagline}</div>${e.body}${metersHTML}
+             <div class="ex-controls"><button class="ex-replay" onclick="replayExplainer()">
+                <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                Replay animation</button></div>`;
+
+        document.getElementById("explainerScrim").classList.add("open");
+        setTimeout(() => { document.querySelectorAll(".ex-meter .mfill").forEach(f => f.style.width = f.dataset.w + "%"); }, 250);
+        _exReturnFocus = document.activeElement;
+        setTimeout(() => { const c = document.querySelector("#explainerCard .ex-close"); if (c) c.focus(); }, 60);
+    }
+    let _exReturnFocus = null;
+    function replayExplainer() { if (_exKey) { const k = _exKey; openExplainer(k); } }
+    function closeExplainer() {
+        document.getElementById("explainerScrim").classList.remove("open");
+        if (_exReturnFocus && _exReturnFocus.focus) { try { _exReturnFocus.focus(); } catch (e) {} }
+    }
+    window.openExplainer = openExplainer;
+    window.replayExplainer = replayExplainer;
+    window.closeExplainer = closeExplainer;
+
+    /* =====================================================================
+       SETTINGS PANEL
+       ===================================================================== */
+    function helpBtn(key) {
+        return `<button type="button" class="help-btn" title="How does this work?" aria-label="Explain this setting" aria-haspopup="dialog" onclick="openExplainer('${key}')">?</button>`;
+    }
+    function toggleRow(label, desc, key, checked) {
+        return `<div class="set-row"><div class="rhead">
+            <div style="flex:1"><div style="display:flex;align-items:center;gap:9px"><span class="rlabel">${label}</span>${helpBtn(key)}</div>
+            <div class="rdesc">${desc}</div></div>
+            <div class="rright"><label class="switch"><input type="checkbox" data-key="${key}" ${checked?"checked":""}><span class="slider"></span></label></div>
+        </div></div>`;
+    }
+    function sliderRow(label, desc, key, val, min, max, step) {
+        return `<div class="set-row"><div class="rhead">
+            <div style="flex:1"><div style="display:flex;align-items:center;gap:9px"><span class="rlabel">${label}</span>${helpBtn(key)}</div>
+            <div class="rdesc">${desc}</div></div></div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:11px">
+                <input type="range" data-key="${key}" min="${min}" max="${max}" step="${step}" value="${val}" oninput="this.nextElementSibling.textContent=(+this.value).toString()">
+                <span class="num-val">${val}</span>
+            </div></div>`;
+    }
+    function textRow(label, desc, key, val) {
+        return `<div class="set-row"><div class="rhead">
+            <div style="flex:1"><div style="display:flex;align-items:center;gap:9px"><span class="rlabel">${label}</span>${helpBtn(key)}</div>
+            <div class="rdesc">${desc}</div></div></div>
+            <input class="txt-input" style="margin-top:10px" data-key="${key}" value="${(val+"").replace(/"/g,"&quot;")}"></div>`;
+    }
+    function areaRow(label, key, val, hint) {
+        return `<div class="set-row"><div class="field-label">${label} ${helpBtn(key)}</div>
+            <textarea class="txt-input" data-key="${key}" spellcheck="false">${val}</textarea>
+            <div class="hintline">${hint}</div></div>`;
+    }
+
+    function renderSettings() {
+        const c = CONFIG;
+        const body = document.getElementById("settingsBody");
+        body.innerHTML =
+            `<div class="set-group"><div class="gtitle">Model</div>
+                ${textRow("Model name", "What the assistant calls itself.", "modelName", c.modelName)}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Behaviour</div>
+                ${toggleRow("Streaming output", "Show the answer token-by-token as it is generated, with a stop button.", "streaming", c.streaming)}
+                ${toggleRow("Conversation memory", "Feed recent turns back into the context window so the model can follow up.", "memory", c.memory)}
+                ${toggleRow("Reasoning mode", "Show the model's real step-by-step thinking before each answer.", "reasoning", c.reasoning)}
+                ${toggleRow("Live RLHF feedback", "Every few replies, generate two answers and let you pick the better one to teach the model.", "liveRLHF", c.liveRLHF)}
+                ${sliderRow("RLHF frequency", "Ask for feedback once every N replies.", "rlhfEvery", c.rlhfEvery, 2, 8, 1)}
+                ${toggleRow("Safety filter", "Train refusals and block harmful requests at inference.", "safety", c.safety)}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Sampling</div>
+                ${sliderRow("Temperature", "Higher = more creative & random. Lower = more focused.", "temperature", c.temperature, 0, 1.5, 0.05)}
+                ${sliderRow("Top-K", "Keep only the K most likely next tokens.", "topK", c.topK, 1, 100, 1)}
+                ${sliderRow("Top-P (nucleus)", "Keep the smallest set of tokens that sum to P probability.", "topP", c.topP, 0.1, 1, 0.05)}
+                ${sliderRow("Max new tokens", "Maximum length of each answer.", "maxNew", c.maxNew, 8, 64, 1)}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Architecture <span style="color:var(--amber);font-weight:600;text-transform:none;letter-spacing:0;font-size:10px">· changing these retrains the model</span></div>
+                ${sliderRow("Model width (d_model)", "Numbers per token vector. Auto-rounded to a multiple of heads.", "dModel", c.dModel, 16, 128, 8)}
+                ${sliderRow("Attention heads", "Parallel attention viewpoints.", "heads", c.heads, 1, 8, 1)}
+                ${sliderRow("Layers", "Depth of the transformer stack.", "layers", c.layers, 1, 4, 1)}
+                ${sliderRow("Feed-forward size", "Hidden size of the per-layer MLP.", "dFF", c.dFF, 32, 256, 16)}
+                ${sliderRow("Context length", "Max tokens the model can attend to.", "maxSeq", c.maxSeq, 16, 96, 8)}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Training <span style="color:var(--amber);font-weight:600;text-transform:none;letter-spacing:0;font-size:10px">· changing these retrains the model</span></div>
+                ${sliderRow("Learning rate", "Step size for weight updates.", "lr", c.lr, 0.0005, 0.01, 0.0005)}
+                ${sliderRow("Pre-training epochs", "Passes over the raw corpus.", "pretrainEpochs", c.pretrainEpochs, 20, 240, 10)}
+                ${sliderRow("Fine-tuning epochs", "Passes over Q/A pairs.", "sftEpochs", c.sftEpochs, 20, 300, 10)}
+                ${sliderRow("RLHF epochs", "Passes over preference pairs.", "rlhfEpochs", c.rlhfEpochs, 0, 150, 10)}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Datasets <span style="color:var(--amber);font-weight:600;text-transform:none;letter-spacing:0;font-size:10px">· editing these retrains the model</span></div>
+                ${areaRow("Pre-training data", "pretrainData", c.pretrainData, "One sentence per line.")}
+                ${areaRow("Fine-tuning data", "sftData", c.sftData, "One per line · format: question | answer")}
+                ${areaRow("Preference (RLHF) data", "rlhfData", c.rlhfData, "One per line · format: question | chosen | rejected")}
+                ${areaRow("Safety data", "safetyData", c.safetyData, "One per line · format: unsafe question | safe refusal")}
+            </div>
+
+            <div class="set-group"><div class="gtitle">Model management ${helpBtn("ioHelp")}</div>
+                <div class="set-row">
+                    <div class="rdesc" style="margin-bottom:10px">Save the trained weights to a file, or load a previously exported model to skip training entirely. You can also verify the engine with built-in tests.</div>
+                    <div style="display:flex;gap:10px;flex-wrap:wrap">
+                        <button class="btn btn-ghost" type="button" onclick="exportModel()">⬇ Export model</button>
+                        <button class="btn btn-ghost" type="button" onclick="document.getElementById('importFile').click()">⬆ Import model</button>
+                        <button class="btn btn-ghost" type="button" onclick="runSelfTests()">🧪 Run self-tests</button>
+                    </div>
+                    <div id="ioStatus" class="hintline" style="margin-top:10px"></div>
+                    <div id="testResults" style="margin-top:10px"></div>
+                </div>
+            </div>
+
+            <div class="retrain-note" id="retrainNote">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--amber);fill:none;stroke-width:2"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
+                These changes need a retrain. Saving will rebuild the model (about 1–3 min).
+            </div>`;
+
+        // flag retrain-needed when architecture/training/data inputs change
+        const retrainKeys = new Set(["dModel","heads","layers","dFF","maxSeq","lr","pretrainEpochs","sftEpochs","rlhfEpochs","pretrainData","sftData","rlhfData","safetyData","safety"]);
+        body.querySelectorAll("[data-key]").forEach(el => {
+            el.addEventListener("input", () => {
+                if (retrainKeys.has(el.dataset.key)) {
+                    document.getElementById("retrainNote").classList.add("show");
+                    document.getElementById("applyBtn").textContent = "Save & retrain";
+                }
+            });
+        });
+    }
+
+    function readSettingsFromDOM() {
+        const out = {};
+        document.querySelectorAll("#settingsBody [data-key]").forEach(el => {
+            const k = el.dataset.key;
+            if (el.type === "checkbox") out[k] = el.checked;
+            else if (el.type === "range") out[k] = parseFloat(el.value);
+            else out[k] = el.value;
+        });
+        return out;
+    }
+
+    function openSettings() { renderSettings(); document.getElementById("settingsScrim").classList.add("open"); document.getElementById("settingsDrawer").classList.add("open"); }
+    function closeSettings() { document.getElementById("settingsScrim").classList.remove("open"); document.getElementById("settingsDrawer").classList.remove("open"); }
+    window.openSettings = openSettings;
+    window.closeSettings = closeSettings;
+
+    function resetSettings() {
+        CONFIG = Object.assign({}, DEFAULTS);
+        saveConfig();
+        renderSettings();
+        document.getElementById("retrainNote").classList.add("show");
+        document.getElementById("applyBtn").textContent = "Save & retrain";
+    }
+    window.resetSettings = resetSettings;
+
+    async function applySettings() {
+        const updates = readSettingsFromDOM();
+        const retrainKeys = ["dModel","heads","layers","dFF","maxSeq","lr","pretrainEpochs","sftEpochs","rlhfEpochs","pretrainData","sftData","rlhfData","safetyData","safety"];
+        const needsRetrain = retrainKeys.some(k => updates[k] !== CONFIG[k]);
+        Object.assign(CONFIG, updates);
+        saveConfig();
+        applyCosmetic();
+        closeSettings();
+        if (needsRetrain) { await startTraining(); }
+    }
+    window.applySettings = applySettings;
+
+    function applyCosmetic() {
+        document.getElementById("sidebarModelName").textContent = CONFIG.modelName;
+        document.getElementById("headerTitle").textContent = CONFIG.modelName + " · local browser model";
+    }
+    /* =====================================================================
+       RUNTIME: training bootstrap + chat
+       ===================================================================== */
+    let MODEL = null, TOKENIZER = null, META = null;
+    let replyCount = 0;
+    let chatHistory = [];          // [{q, a}] for conversation memory
+    let streamControl = null;      // { stop:fn } for the in-flight stream
+
+    function escapeHTML(s) { return (s+"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    /* =====================================================================
+       MODEL EXPORT / IMPORT
+       ===================================================================== */
+    function ioStatus(msg, color) {
+        const el = document.getElementById("ioStatus");
+        if (el) { el.textContent = msg; el.style.color = color || "var(--text-dim)"; }
+    }
+
+    function exportModel() {
+        if (!MODEL || !TOKENIZER) { ioStatus("Train or import a model first.", "var(--amber)"); return; }
+        const payload = {
+            format: "unsatho-model",
+            version: 1,
+            savedAt: new Date().toISOString(),
+            config: CONFIG,
+            model: MODEL.serialize(),
+            tokenizer: TOKENIZER.serialize()
+        };
+        const blob = new Blob([JSON.stringify(payload)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        const safe = (CONFIG.modelName || "unsatho").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        a.href = url; a.download = `${safe}-${(MODEL.numParams/1000).toFixed(0)}k.unsatho.json`;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        ioStatus(`Exported ${(MODEL.numParams/1000).toFixed(1)}K-param model.`, "var(--accent)");
+    }
+    window.exportModel = exportModel;
+
+    async function importModelFromText(text) {
+        const obj = JSON.parse(text);
+        if (obj.format !== "unsatho-model") throw new Error("Not an Unsatho model file.");
+        const model = FlatTransformer.deserialize(obj.model);
+        const tokenizer = BPETokenizer.deserialize(obj.tokenizer);
+        // restore inference helper used by live RLHF
+        const maxSeq = obj.model.arch.maxSeq;
+        model.__encQA = (q, a) => {
+            const promptLen = tokenizer.encode("Q: " + q + " A:").length - 1;
+            const full = tokenizer.encode("Q: " + q + " A: " + a);
+            if (full.length > maxSeq) return null;
+            const input = full.slice(0, -1), target = full.slice(1);
+            const mask = new Array(target.length).fill(0);
+            for (let i = 0; i < target.length; i++) if (i >= promptLen - 1) mask[i] = 1;
+            return { input, target, mask };
+        };
+        MODEL = model; TOKENIZER = tokenizer;
+        window.MODEL = MODEL; window.TOKENIZER = TOKENIZER;
+        META = Object.assign({}, obj.model.arch, { numParams: obj.model.numParams });
+        if (obj.config) { CONFIG = Object.assign({}, DEFAULTS, obj.config); saveConfig(); applyCosmetic(); }
+        const label = (META.numParams/1000).toFixed(1) + "K";
+        const pm = document.getElementById("paramMeta");
+        if (pm) pm.textContent = `${label} params · ${META.layers}L · ${META.heads}H`;
+        ["pretrain","sft","rlhf"].forEach(s => setStage(s, "done"));
+        chatHistory = []; replyCount = 0;
+        renderWelcome(label);
+        return label;
+    }
+
+    function wireImport() {
+        const fi = document.getElementById("importFile");
+        if (!fi) return;
+        fi.addEventListener("change", async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            ioStatus("Loading model file…");
+            try {
+                const text = await file.text();
+                const label = await importModelFromText(text);
+                ioStatus(`Imported ${label}-param model — ready to chat (no training needed).`, "var(--accent)");
+                setTimeout(closeSettings, 700);
+            } catch (err) {
+                ioStatus("Import failed: " + err.message, "var(--pink)");
+            } finally { fi.value = ""; }
+        });
+    }
+
+    /* =====================================================================
+       BUILT-IN SELF-TESTS  (sanity checks the engine in-browser)
+       ===================================================================== */
+    function selfTests() {
+        const results = [];
+        const ok = (name, pass, detail) => results.push({ name, pass: !!pass, detail: detail || "" });
+
+        // 1. softmax sums to 1 and is in range
+        try {
+            const p = Matrix.softmax([2, 1, 0, -1]);
+            let s = 0, inRange = true;
+            for (const v of p) { s += v; if (v < 0 || v > 1) inRange = false; }
+            ok("softmax normalizes to 1", Math.abs(s - 1) < 1e-5 && inRange, `sum=${s.toFixed(6)}`);
+        } catch (e) { ok("softmax normalizes to 1", false, e.message); }
+
+        // 2. sampler respects top-K=1 (greedy → argmax)
+        try {
+            const logits = [0.1, 5.0, 0.2, -3];
+            let allOne = true;
+            for (let i = 0; i < 20; i++) if (sampleNextToken(logits, 0.9, 1, 1.0) !== 1) allOne = false;
+            ok("top-K=1 always picks argmax", allOne);
+        } catch (e) { ok("top-K=1 always picks argmax", false, e.message); }
+
+        // 3. temperature≈0 is deterministic greedy
+        try {
+            const logits = [1, 2, 3, 0];
+            ok("temperature→0 is greedy", sampleNextToken(logits, 0, 40, 1) === 2);
+        } catch (e) { ok("temperature→0 is greedy", false, e.message); }
+
+        // 4. tokenizer round-trips a known phrase
+        try {
+            if (TOKENIZER) {
+                const txt = "what is a cat";
+                const dec = TOKENIZER.decode(TOKENIZER.encode(txt));
+                ok("tokenizer round-trips text", dec === txt, `"${dec}"`);
+            } else ok("tokenizer round-trips text", false, "no tokenizer");
+        } catch (e) { ok("tokenizer round-trips text", false, e.message); }
+
+        // 5. forward pass shape is [seqLen, vocab]
+        try {
+            if (MODEL && TOKENIZER) {
+                const ids = TOKENIZER.encode("hi");
+                const out = MODEL._forward(ids);
+                ok("forward output shape correct", out.rows === ids.length && out.cols === MODEL.vocabSize,
+                   `${out.rows}x${out.cols}`);
+            } else ok("forward output shape correct", false, "no model");
+        } catch (e) { ok("forward output shape correct", false, e.message); }
+
+        // 6. a tiny training step reduces loss on one example (gradient sanity)
+        try {
+            const V = 12, m = new FlatTransformer(V, 16, 12, 2, 1, 32);
+            const inp = [1, 4, 5, 6], tgt = [4, 5, 6, 2];
+            let first = 0, last = 0;
+            for (let i = 0; i < 40; i++) {
+                const l = m.forwardAndBackward(inp, tgt, 0.01, 0.9, 0.999, 1e-8, null, null);
+                if (i === 0) first = l; last = l;
+            }
+            ok("training reduces loss", last < first - 0.1, `${first.toFixed(3)} → ${last.toFixed(3)}`);
+        } catch (e) { ok("training reduces loss", false, e.message); }
+
+        // 7. serialize → deserialize preserves outputs
+        try {
+            if (MODEL && TOKENIZER) {
+                const ids = TOKENIZER.encode("hello");
+                const before = MODEL._forward(ids);
+                const clone = FlatTransformer.deserialize(MODEL.serialize());
+                const after = clone._forward(ids);
+                let maxDiff = 0;
+                for (let i = 0; i < before.data.length; i++) maxDiff = Math.max(maxDiff, Math.abs(before.data[i] - after.data[i]));
+                ok("export/import preserves weights", maxDiff < 1e-4, `max diff ${maxDiff.toExponential(1)}`);
+            } else ok("export/import preserves weights", false, "no model");
+        } catch (e) { ok("export/import preserves weights", false, e.message); }
+
+        return results;
+    }
+
+    function runSelfTests() {
+        const box = document.getElementById("testResults");
+        if (box) box.innerHTML = `<div class="hintline">Running…</div>`;
+        setTimeout(() => {
+            const res = selfTests();
+            const passed = res.filter(r => r.pass).length;
+            const rows = res.map(r => `
+                <div style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:4px 0">
+                    <span style="color:${r.pass ? "var(--accent)" : "var(--pink)"};font-weight:700">${r.pass ? "✓" : "✗"}</span>
+                    <span style="flex:1">${escapeHTML(r.name)}</span>
+                    <span style="color:var(--text-dim);font-family:monospace;font-size:11px">${escapeHTML(r.detail)}</span>
+                </div>`).join("");
+            if (box) box.innerHTML = `
+                <div style="font-size:12px;font-weight:700;color:${passed === res.length ? "var(--accent)" : "var(--amber)"};margin-bottom:4px">
+                    ${passed}/${res.length} tests passed</div>${rows}`;
+        }, 30);
+    }
+    window.runSelfTests = runSelfTests;
+
+    function toggleSidebar() { document.getElementById("sidebar").classList.toggle("open"); }
+    function closeSidebar() { document.getElementById("sidebar").classList.remove("open"); }
+    window.toggleSidebar = toggleSidebar;
+    window.closeSidebar = closeSidebar;
+
+    function setStage(stage, state) {
+        const el = document.querySelector(`.stage-pill[data-stage="${stage}"]`);
+        if (!el) return;
+        el.classList.remove("done");
+        if (state === "done") el.classList.add("done");
+    }
+
+    async function startTraining() {
+        // show overlay
+        const overlay = document.getElementById("overlay");
+        overlay.style.setProperty("display", "flex", "important");
+        const trainMsg = document.getElementById("trainMsg");
+        const lossMsg = document.getElementById("lossMsg");
+        const progressFill = document.getElementById("progressFill");
+        const input = document.getElementById("input");
+        const sendBtn = document.getElementById("send");
+        input.disabled = true; sendBtn.disabled = true;
+        ["pretrain","sft","rlhf"].forEach(s => setStage(s, ""));
+
+        const hud = new VisualizerHUD();
+        const hooks = {
+            yield: () => new Promise(r => setTimeout(r, 5)),
+            onMsg: (m) => { trainMsg.textContent = m; },
+            onLoss: (l) => { hud.pushLoss(l); lossMsg.textContent = "loss " + l.toFixed(5); },
+            onAttn: (matrix, len) => hud.drawAttention(matrix, len),
+            onProgress: (p) => { progressFill.style.width = (p*100).toFixed(1) + "%"; },
+            onStage: (s, st) => setStage(s, st)
+        };
+
+        const res = await runTraining(CONFIG, hooks);
+        MODEL = res.model; TOKENIZER = res.tokenizer; META = res.meta;
+        window.MODEL = MODEL; window.TOKENIZER = TOKENIZER;
+
+        const label = (META.numParams/1000).toFixed(1) + "K";
+        document.getElementById("paramMeta").textContent = `${label} params · ${META.layers}L · ${META.heads}H`;
+
+        trainMsg.textContent = "Done! Pre-training → fine-tuning → RLHF complete.";
+        await new Promise(r => setTimeout(r, 350));
+        overlay.style.setProperty("display", "none", "important");
+
+        input.disabled = false; sendBtn.disabled = false;
+        document.getElementById("chat").setAttribute("aria-busy", "false");
+        document.getElementById("headerStatus").innerHTML = '<span class="pulse" aria-hidden="true"></span> Online';
+        renderWelcome(label);
+    }
+    window.startTraining = startTraining;
+
+    function renderWelcome(label) {
+        const chatDiv = document.getElementById("chat");
+        chatDiv.innerHTML = "";
+        const div = document.createElement("div");
+        div.className = "msg-container ai";
+        div.innerHTML = `<div class="msg-content"><div class="avatar ai">
+            <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+            <div class="bubble-wrap"><div class="bubble-text">Hi! I'm <b>${escapeHTML(CONFIG.modelName)}</b> — a real ${META.layers}-layer, ${META.heads}-head transformer (${label} params) trained live in your browser with multi-head attention, LayerNorm, residuals, feed-forward layers and RLHF alignment.
+
+Try the suggestions below, or open <b>Settings</b> to edit my training data, tweak hyperparameters, or turn on reasoning &amp; live RLHF. Every option has a <b style="color:var(--accent)">?</b> with an animated explainer.</div></div></div>`;
+        chatDiv.appendChild(div);
+        renderChips();
+    }
+
+    function renderChips() {
+        const chips = document.getElementById("chips");
+        const items = ["who are you", "what is a cat", "explain backprop", "what color is the sky"];
+        chips.innerHTML = items.map(t => `<div class="chip">${t}</div>`).join("");
+        chips.querySelectorAll(".chip").forEach(ch => ch.onclick = () => {
+            const input = document.getElementById("input");
+            input.value = ch.textContent; input.dispatchEvent(new Event("input"));
+            sendMessage();
+        });
+    }
+
+    function clearChat() {
+        if (!META) return;
+        chatHistory = [];
+        replyCount = 0;
+        renderWelcome((META.numParams/1000).toFixed(1) + "K");
+    }
+    window.clearChat = clearChat;
+
+    /* ---- reasoning trace (real, derived from the model) ---- */
+    function buildReasoning(userText) {
+        const toks = TOKENIZER.encode(userText).filter(id => id > 3).map(id => TOKENIZER.decode([id]) || "·");
+        const prompt = "Q: " + userText + " A:";
+        const ptoks = TOKENIZER.encode(prompt);
+        if (ptoks[ptoks.length-1] === 2) ptoks.pop();
+        const cands = topCandidates(MODEL, TOKENIZER, ptoks, 5);
+        const candStr = cands.map(c => `"${c.tok.trim()||"·"}" ${(c.p*100).toFixed(0)}%`).join("   ");
+        const steps = [
+            `1 · Tokenize: split your message into ${toks.length} subword token(s) → ${toks.map(t=>"["+t.trim()+"]").join(" ")}`,
+            `2 · Encode: ${META.layers} transformer layer(s) × ${META.heads} attention head(s) read the prompt and build context.`,
+            `3 · Predict: top next-token candidates →  ${candStr}`,
+            `4 · Sample: temperature ${CONFIG.temperature}, top-K ${CONFIG.topK}, top-P ${CONFIG.topP} pick from those, repeating until the answer ends.`
+        ];
+        return steps;
+    }
+
+    function reasoningHTML(steps) {
+        const open = CONFIG.reasoning;
+        return `<div class="reasoning ${open?'':'collapsed'}">
+            <div class="reasoning-head" onclick="this.parentElement.classList.toggle('collapsed')">
+                <svg viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1M12 17v4M5 12H4M20 12h-1M7 7 6 6M17 7l1-1M9 12a3 3 0 1 1 6 0c0 1.5-1 2-1.5 3h-3C10 14 9 13.5 9 12z"></path></svg>
+                <span>Reasoning · how I built this answer</span>
+                <svg class="chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="reasoning-body">${steps.map((s,i)=>`<div class="step" style="animation-delay:${i*0.08}s">${escapeHTML(s)}</div>`).join("")}</div>
+        </div>`;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        applyCosmetic();
+        wireImport();
+        const input = document.getElementById("input");
+        const sendBtn = document.getElementById("send");
+        const chatDiv = document.getElementById("chat");
+        let typingIndicator = null;
+
+        // autosize textarea
+        input.addEventListener("input", () => {
+            input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 140) + "px";
+            if (input.value.trim() && MODEL) sendBtn.classList.add("active"); else sendBtn.classList.remove("active");
+        });
+
+        function showTyping() {
+            hideTyping();
+            const div = document.createElement("div");
+            div.className = "msg-container ai"; div.id = "typingIndicator";
+            div.innerHTML = `<div class="msg-content"><div class="avatar ai">
+                <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>
+                <div class="bubble-wrap"><div class="bubble-text"><div class="typing"><span></span><span></span><span></span></div></div></div></div>`;
+            chatDiv.appendChild(div); typingIndicator = div; chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        function hideTyping() { if (typingIndicator) { typingIndicator.remove(); typingIndicator = null; } }
+
+        function addMessage(role, html) {
+            const div = document.createElement("div");
+            div.className = `msg-container ${role}`;
+            const avatar = role === "user"
+                ? `<div class="avatar user">U</div>`
+                : `<div class="avatar ai"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg></div>`;
+            div.innerHTML = `<div class="msg-content">${avatar}<div class="bubble-wrap">${html}</div></div>`;
+            chatDiv.appendChild(div); chatDiv.scrollTop = chatDiv.scrollHeight;
+            return div;
+        }
+
+        function genOpts() { return { temperature: CONFIG.temperature, topK: CONFIG.topK, topP: CONFIG.topP, maxNew: CONFIG.maxNew }; }
+
+        function setSendMode(streaming) {
+            // swap the send icon for a stop icon while streaming
+            sendBtn.classList.toggle("streaming", streaming);
+            sendBtn.setAttribute("aria-label", streaming ? "Stop generating" : "Send message");
+            sendBtn.innerHTML = streaming
+                ? `<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>`
+                : `<svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+        }
+
+        function historyForMemory() {
+            return CONFIG.memory ? chatHistory.slice(-4) : null;
+        }
+
+        async function sendMessage() {
+            // If a stream is running, the button acts as STOP.
+            if (streamControl) { streamControl.stopped = true; return; }
+
+            const text = input.value.trim();
+            if (!text || !MODEL) return;
+            closeSidebar();
+            addMessage("user", `<div class="bubble-text">${escapeHTML(text)}</div>`);
+            input.value = ""; input.style.height = "auto";
+            sendBtn.classList.remove("active");
+
+            const userText = text.replace(/^[qQ]:\s*/, "");
+            const blocked = safetyFilter(userText);
+
+            // reasoning (only if not blocked and toggle on)
+            let reasoning = "";
+            if (CONFIG.reasoning && !blocked) {
+                try { reasoning = reasoningHTML(buildReasoning(userText)); } catch (e) { reasoning = ""; }
+            }
+
+            replyCount++;
+            const doRLHF = CONFIG.liveRLHF && !blocked && (replyCount % CONFIG.rlhfEvery === 0);
+            const hist = historyForMemory();
+
+            if (blocked) {
+                showTyping(); await new Promise(r => setTimeout(r, 150)); hideTyping();
+                addMessage("ai", `<div class="bubble-text">${escapeHTML(blocked)}</div>`);
+                chatHistory.push({ q: userText, a: blocked });
+            } else if (doRLHF) {
+                showTyping(); await new Promise(r => setTimeout(r, 180)); hideTyping();
+                const original = generateAnswer(MODEL, TOKENIZER, userText, Object.assign({}, genOpts(), { temperature: Math.max(0.05, CONFIG.temperature*0.4) }), hist);
+                let a = generateAnswer(MODEL, TOKENIZER, userText, Object.assign({}, genOpts(), { temperature: Math.max(0.5, CONFIG.temperature) }), hist);
+                let b = generateAnswer(MODEL, TOKENIZER, userText, Object.assign({}, genOpts(), { temperature: Math.max(0.85, CONFIG.temperature + 0.4) }), hist);
+                if (b === a) b = generateAnswer(MODEL, TOKENIZER, userText, Object.assign({}, genOpts(), { temperature: 1.2 }), hist);
+                renderVote(userText, original, a, b, reasoning);
+            } else if (CONFIG.streaming) {
+                // streaming output, with the send button doubling as a stop control
+                const node = addMessage("ai", `${reasoning}<div class="bubble-text" aria-live="polite"><span class="cursor">▍</span></div>`);
+                const bubble = node.querySelector(".bubble-text");
+                streamControl = { stopped: false, stop() { return this.stopped; } };
+                setSendMode(true);
+                const finalAns = await generateAnswerStream(MODEL, TOKENIZER, userText, genOpts(), hist,
+                    (partial) => { bubble.innerHTML = escapeHTML(partial) + `<span class="cursor">▍</span>`; chatDiv.scrollTop = chatDiv.scrollHeight; },
+                    streamControl);
+                bubble.innerHTML = escapeHTML(finalAns);
+                streamControl = null;
+                setSendMode(false);
+                chatHistory.push({ q: userText, a: finalAns });
+            } else {
+                showTyping(); await new Promise(r => setTimeout(r, 180)); hideTyping();
+                const ans = generateAnswer(MODEL, TOKENIZER, userText, genOpts(), hist);
+                addMessage("ai", `${reasoning}<div class="bubble-text">${escapeHTML(ans)}</div>`);
+                chatHistory.push({ q: userText, a: ans });
+            }
+
+            if (input.value.trim()) sendBtn.classList.add("active");
+        }
+        window.sendMessage = sendMessage;
+
+        function renderVote(userText, original, a, b, reasoning) {
+            const node = addMessage("ai", `${reasoning}
+                <div class="rlhf-vote">
+                    <div class="vh"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--accent);fill:none;stroke-width:2"><path d="M14 9V5a3 3 0 0 0-6 0v4M5 9h14l1 11H4L5 9z"></path></svg> Help me improve — which answer is better?</div>
+                    <div class="vsub">Your pick teaches me with a few real gradient steps (live RLHF).</div>
+                    <div class="rlhf-options">
+                        <div class="rlhf-opt" data-pick="a"><div class="lbl">Answer A</div>${escapeHTML(a)}</div>
+                        <div class="rlhf-opt" data-pick="b"><div class="lbl">Answer B</div>${escapeHTML(b)}</div>
+                    </div>
+                    <div class="rlhf-actions">
+                        <button class="rlhf-bad" data-pick="bad">⊘ Both are bad — keep the safe answer</button>
+                    </div>
+                </div>`);
+
+            const vote = node.querySelector(".rlhf-vote");
+            const finish = (chosenText, learned) => {
+                vote.innerHTML = `<div class="bubble-text" style="padding-top:0">${escapeHTML(chosenText)}</div>
+                    <div class="rlhf-done"><svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--accent);fill:none;stroke-width:2"><polyline points="20 6 9 17 4 12"></polyline></svg> ${learned ? "Thanks — I just learned from your choice." : "Kept the safe answer. No update made."}</div>`;
+                chatDiv.scrollTop = chatDiv.scrollHeight;
+            };
+
+            vote.querySelectorAll(".rlhf-opt").forEach(opt => opt.onclick = () => {
+                const chosen = opt.dataset.pick === "a" ? a : b;
+                try { liveRLHFReinforce(MODEL, userText, chosen); } catch (e) {}
+                finish(chosen, true);
+                chatHistory.push({ q: userText, a: chosen });
+            });
+            vote.querySelector(".rlhf-bad").onclick = () => { finish(original, false); chatHistory.push({ q: userText, a: original }); };
+        }
+
+        sendBtn.onclick = sendMessage;
+        input.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } };
+
+        // Escape closes overlays
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                if (document.getElementById("explainerScrim").classList.contains("open")) closeExplainer();
+                else if (document.getElementById("settingsDrawer").classList.contains("open")) closeSettings();
+            }
+        });
+
+        startTraining();
+    });
+</script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"1954b47c125f43f8b4338b3c4f804e4f","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
