@@ -1,5 +1,5 @@
-real ai training inside a single html file
+ai in html
 
-has detailed explainers and stuff and gives u full customizability
+has educational and gives full customizablity
 
 thats it
