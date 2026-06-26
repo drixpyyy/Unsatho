@@ -1,3 +1,3 @@
 # Ekalopha
 
-ai models
+how much smart u can get in small ai models
